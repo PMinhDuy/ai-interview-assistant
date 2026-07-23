@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { CORRELATION_ID_HEADER } from '../middleware/correlation-id.middleware';
-import type { LoggerService } from '../../infrastructure/logger/logger.service';
+import { LoggerService } from '../../infrastructure/logger/logger.service';
 import type { ApiError } from '@repo/types';
 
 @Catch()

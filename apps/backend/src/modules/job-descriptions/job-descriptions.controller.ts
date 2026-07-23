@@ -26,7 +26,7 @@ import {
 } from '@nestjs/swagger';
 import { IsString, MinLength } from 'class-validator';
 
-import type { JobDescriptionsService } from './job-descriptions.service';
+import { JobDescriptionsService } from './job-descriptions.service';
 import type {
   ListJobDescriptionsQueryDto} from './dto/job-description.dto';
 import {

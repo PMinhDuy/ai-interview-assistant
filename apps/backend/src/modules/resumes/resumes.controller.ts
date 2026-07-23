@@ -24,7 +24,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 
-import type { ResumesService } from './resumes.service';
+import { ResumesService } from './resumes.service';
 import type { ListResumesQueryDto} from './dto/resume.dto';
 import { ResumeResponseDto } from './dto/resume.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';

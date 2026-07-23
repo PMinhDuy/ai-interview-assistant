@@ -8,7 +8,7 @@ import {
 import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import type { Request } from 'express';
-import type { LoggerService } from '../../infrastructure/logger/logger.service';
+import { LoggerService } from '../../infrastructure/logger/logger.service';
 import { CORRELATION_ID_HEADER } from '../middleware/correlation-id.middleware';
 
 @Injectable()

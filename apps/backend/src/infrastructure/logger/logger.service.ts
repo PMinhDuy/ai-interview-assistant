@@ -1,11 +1,8 @@
-import type { LoggerService as NestLoggerService} from '@nestjs/common';
-import { Injectable, Scope } from '@nestjs/common';
+import type { LoggerService as NestLoggerService } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Logger } from 'winston';
 import { createLogger, format, transports } from 'winston';
-import { REQUEST } from '@nestjs/core';
-import { Inject, Optional } from '@nestjs/common';
-import type { Request } from 'express';
 
 /**
  * Structured, CloudWatch-compatible logger.
@@ -19,16 +16,13 @@ import type { Request } from 'express';
  *   - Structured JSON output (CloudWatch / Datadog compatible)
  *   - Token/latency tracking for AI cost observability
  */
-@Injectable({ scope: Scope.DEFAULT })
+@Injectable()
 export class LoggerService implements NestLoggerService {
   private logger: Logger;
 
-  constructor(
-    @Optional() @Inject(REQUEST) private readonly request?: Request,
-    @Optional() private readonly configService?: ConfigService,
-  ) {
-    const logLevel = configService?.get('LOG_LEVEL', 'info') ?? 'info';
-    const isDev = configService?.get('NODE_ENV') === 'development';
+  constructor(private readonly configService: ConfigService) {
+    const logLevel = configService.get('LOG_LEVEL', 'info');
+    const isDev = configService.get('NODE_ENV') === 'development';
 
     this.logger = createLogger({
       level: logLevel,
@@ -43,14 +37,10 @@ export class LoggerService implements NestLoggerService {
     });
   }
 
-  private getCorrelationId(): string | undefined {
-    return this.request?.headers?.['x-correlation-id'] as string | undefined;
-  }
-
-  private buildMeta(context?: string) {
+  private buildMeta(context?: string, correlationId?: string) {
     return {
       context,
-      correlationId: this.getCorrelationId(),
+      correlationId,
       service: 'ai-interview-backend',
     };
   }

@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -24,7 +25,10 @@ import { validate } from './config/env.validation';
     // ConfigModule is global — available everywhere without importing
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: [
+        resolve(__dirname, '../../../../.env.local'),
+        resolve(__dirname, '../../../../.env'),
+      ],
       validate, // Joi/Zod validation of env vars at startup
     }),
 
