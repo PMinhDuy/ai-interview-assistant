@@ -1,0 +1,145 @@
+# ============================================================
+# AI Interview Assistant — Docker Compose
+# Local-first development environment
+#
+# Services:
+#   postgres  — PostgreSQL 16 with pgvector extension
+#   redis     — Redis 7 for caching + session store
+#   ollama    — Local LLM runtime (llama3, mistral, etc.)
+#   minio     — S3-compatible local object storage (optional)
+#
+# Usage:
+#   docker compose up -d            # start all services
+#   docker compose up -d postgres redis  # core only
+#   docker compose logs -f ollama   # tail Ollama logs
+#
+# AIP-C01 Note:
+#   Ollama mirrors Amazon Bedrock's role locally.
+#   When AWS_BEDROCK_ENABLED=true, requests route to Bedrock instead.
+# ============================================================
+
+services:
+  # ── PostgreSQL + pgvector ──────────────────────────────────
+  # Why pgvector? It adds vector similarity search to Postgres,
+  # eliminating need for a separate vector DB like Pinecone.
+  # AWS equivalent: Aurora PostgreSQL with pgvector extension.
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ai-interview-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ai_interview}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ai_interview}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ai-interview-network
+
+  # ── Redis ─────────────────────────────────────────────────
+  # Used for: refresh token store, rate limiting, caching,
+  # session management, and Bull job queues (Phase 2+)
+  # AWS equivalent: Amazon ElastiCache for Redis
+  redis:
+    image: redis:7-alpine
+    container_name: ai-interview-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_secret} --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-redis_secret}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ai-interview-network
+
+  # ── Ollama ────────────────────────────────────────────────
+  # Local LLM runtime — runs llama3, mistral, qwen2.5, etc.
+  # This is the LOCAL equivalent of Amazon Bedrock.
+  # Cost: $0/month (vs ~$3-$15 per million tokens on Bedrock)
+  # Tradeoff: Slower inference, requires GPU or good CPU
+  # When to use Bedrock: Production, scale, better models
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-interview-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_MAX_LOADED_MODELS=2
+    # Uncomment for GPU support (NVIDIA):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ai-interview-network
+
+  # ── MinIO (Optional S3-compatible storage) ────────────────
+  # Used when STORAGE_PROVIDER=local (default)
+  # Provides S3-compatible API so switching to real S3 is trivial
+  # AWS equivalent: Amazon S3
+  # Cost comparison: Free local vs ~$0.023/GB on S3
+  minio:
+    image: minio/minio:latest
+    container_name: ai-interview-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai-interview-network
+    profiles:
+      - storage  # only start with: docker compose --profile storage up
+
+# ── Volumes ────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  ollama_data:
+    driver: local
+  minio_data:
+    driver: local
+
+# ── Networks ───────────────────────────────────────────────────
+networks:
+  ai-interview-network:
+    driver: bridge

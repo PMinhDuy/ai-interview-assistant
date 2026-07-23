@@ -1,0 +1,424 @@
+// ============================================================
+// Prisma Schema — AI Interview Assistant
+//
+// Architecture Note:
+//   We use PostgreSQL with pgvector for vector similarity search.
+//   This eliminates the need for a separate vector database (Pinecone, Weaviate).
+//   AWS equivalent: Aurora PostgreSQL + pgvector, or OpenSearch Serverless.
+//
+// AIP-C01 Note:
+//   The Embedding model stores chunked document embeddings.
+//   During RAG, we use cosine similarity (<=> operator) to find
+//   relevant chunks, then feed them as context to the LLM.
+// ============================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector, uuidOssp(map: "uuid-ossp"), pgTrgm(map: "pg_trgm")]
+}
+
+// ── Enums ─────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum ResumeStatus {
+  PENDING
+  PROCESSING
+  ANALYZED
+  FAILED
+}
+
+enum InterviewType {
+  TECHNICAL
+  BEHAVIORAL
+  SYSTEM_DESIGN
+  CODING
+  MIXED
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum InterviewStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum QuestionCategory {
+  REACT
+  NEXTJS
+  NESTJS
+  NODEJS
+  AWS
+  SYSTEM_DESIGN
+  BEHAVIORAL
+  CODING
+  CUSTOM
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+enum EmbeddingSourceType {
+  RESUME
+  JOB_DESCRIPTION
+  KNOWLEDGE_BASE
+}
+
+enum ExperienceLevel {
+  JUNIOR
+  MID
+  SENIOR
+  LEAD
+  STAFF
+}
+
+// ── User & Auth ───────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email           String    @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  role            Role      @default(USER)
+  avatarUrl       String?
+  isEmailVerified Boolean   @default(false)
+  
+  // Refresh token stored as bcrypt hash for security
+  // We store the hash, not the plain token
+  refreshTokenHash String?
+  
+  // Password reset
+  passwordResetToken     String?   @unique
+  passwordResetExpiresAt DateTime?
+  
+  // Email verification
+  emailVerificationToken String?   @unique
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  resumes          Resume[]
+  jobDescriptions  JobDescription[]
+  conversations    Conversation[]
+  interviewSessions InterviewSession[]
+  learningRoadmaps LearningRoadmap[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// ── Resume ────────────────────────────────────────────────────
+
+model Resume {
+  id           String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId       String       @db.Uuid
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  
+  // Local path OR S3 key depending on STORAGE_PROVIDER
+  filePath     String
+  fileUrl      String?
+  
+  extractedText String?     @db.Text
+  status        ResumeStatus @default(PENDING)
+  
+  // Flexible JSON metadata (extracted by AI)
+  metadata      Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  embeddings        Embedding[]
+  interviewSessions InterviewSession[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("resumes")
+}
+
+// ── Job Description ───────────────────────────────────────────
+
+model JobDescription {
+  id              String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String          @db.Uuid
+  title           String
+  company         String?
+  filename        String?
+  extractedText   String          @db.Text
+  requirements    String[]
+  niceToHave      String[]
+  techStack       String[]
+  experienceLevel ExperienceLevel @default(MID)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  embeddings        Embedding[]
+  interviewSessions InterviewSession[]
+
+  @@index([userId])
+  @@map("job_descriptions")
+}
+
+// ── Conversation & Messages ───────────────────────────────────
+
+model Conversation {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId      String  @db.Uuid
+  sessionId   String? @db.Uuid
+  title       String?
+  model       String
+  provider    String  @default("local")
+  totalTokens Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  conversationId String      @db.Uuid
+  role           MessageRole
+  content        String      @db.Text
+  
+  // Observability fields
+  tokenCount     Int?
+  latencyMs      Int?
+  model          String?
+  
+  // For prompt injection detection
+  isFlagged      Boolean @default(false)
+  flagReason     String?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+// ── Interview Session ─────────────────────────────────────────
+
+model InterviewSession {
+  id                  String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId              String          @db.Uuid
+  resumeId            String?         @db.Uuid
+  jobDescriptionId    String?         @db.Uuid
+  type                InterviewType
+  difficulty          Difficulty
+  status              InterviewStatus @default(PENDING)
+  totalQuestions      Int             @default(10)
+  currentQuestionIndex Int            @default(0)
+  model               String          @default("llama3")
+  provider            String          @default("local")
+  
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume         Resume?         @relation(fields: [resumeId], references: [id])
+  jobDescription JobDescription? @relation(fields: [jobDescriptionId], references: [id])
+  questions      Question[]
+  evaluations    Evaluation[]
+  report         SessionReport?
+
+  @@index([userId])
+  @@index([status])
+  @@map("interview_sessions")
+}
+
+model Question {
+  id                String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sessionId         String           @db.Uuid
+  category          QuestionCategory
+  difficulty        Difficulty
+  content           String           @db.Text
+  expectedAnswer    String?          @db.Text
+  hints             String[]
+  followUpQuestions String[]
+  
+  createdAt DateTime @default(now())
+
+  // Relations
+  session    InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  evaluation Evaluation?
+
+  @@index([sessionId])
+  @@map("questions")
+}
+
+// ── Evaluation ────────────────────────────────────────────────
+
+model Evaluation {
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sessionId  String @db.Uuid
+  questionId String @unique @db.Uuid
+  userAnswer String @db.Text
+  
+  // Scores are stored as JSON to allow flexible rubrics
+  scores           Json // { overall, technical, communication, problemSolving, depth }
+  feedback         String   @db.Text
+  strengths        String[]
+  improvements     String[]
+  suggestedAnswer  String?  @db.Text
+  
+  // For coding questions
+  complexityAnalysis Json? // { timeComplexity, spaceComplexity, explanation, betterApproach }
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  session  InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("evaluations")
+}
+
+model SessionReport {
+  id        String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sessionId String @unique @db.Uuid
+  userId    String @db.Uuid
+  
+  overallScore      Json    // EvaluationScore
+  totalQuestions    Int
+  answeredQuestions Int
+  durationSeconds   Int
+  strengths         String[]
+  areasToImprove    String[]
+  learningRoadmap   Json    // LearningResource[]
+  
+  generatedAt DateTime @default(now())
+
+  // Relations
+  session InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("session_reports")
+}
+
+// ── Learning Roadmap ──────────────────────────────────────────
+
+model LearningRoadmap {
+  id     String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId String @db.Uuid
+  
+  title     String
+  skills    String[]
+  resources Json     // LearningResource[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("learning_roadmaps")
+}
+
+// ── Prompt Management ─────────────────────────────────────────
+// AIP-C01: Prompt versioning is a key production pattern.
+// Allows A/B testing prompts, rollback, and audit trails.
+
+model Prompt {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String
+  version     Int     @default(1)
+  description String?
+  template    String  @db.Text
+  variables   String[]  // list of {{variable}} names in template
+  
+  // Metadata for evaluation
+  model       String?
+  isActive    Boolean @default(true)
+  
+  // Metrics (populated after prompt testing)
+  avgLatencyMs   Float?
+  avgTokenCount  Float?
+  successRate    Float?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, version])
+  @@index([name])
+  @@index([isActive])
+  @@map("prompts")
+}
+
+// ── RAG Embeddings ────────────────────────────────────────────
+// AIP-C01: This is the core of the RAG pipeline.
+// Each document is chunked and stored here with its vector embedding.
+// During retrieval, we compute cosine similarity against query embedding.
+
+model Embedding {
+  id           String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sourceType   EmbeddingSourceType
+  sourceId     String              @db.Uuid
+  
+  content      String              @db.Text   // the chunk text
+  chunkIndex   Int
+  
+  // pgvector stores the embedding vector
+  // Dimension 768 = nomic-embed-text / Titan Embeddings V2
+  // IMPORTANT: Once set, dimension cannot be changed without re-embedding
+  vector       Unsupported("vector(768)")?
+  
+  // Additional metadata for filtering
+  metadata     Json?
+  
+  // Track which model/provider generated this embedding
+  embeddingModel    String
+  embeddingProvider String
+
+  createdAt DateTime @default(now())
+
+  // Polymorphic relations (via sourceType + sourceId)
+  resume         Resume?         @relation(fields: [sourceId], references: [id], map: "embedding_resume_fk")
+  jobDescription JobDescription? @relation(fields: [sourceId], references: [id], map: "embedding_jd_fk")
+
+  @@index([sourceType, sourceId])
+  @@index([chunkIndex])
+  @@map("embeddings")
+}
