@@ -11,7 +11,7 @@ import {
   ParseUUIDPipe,
   Res,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { Response } from 'express';
 
 import { ChatService } from './chat.service';
@@ -119,5 +119,3 @@ export class ChatController {
     }
   }
 }
-// Helper decorator import for Swagger params
-import { ApiParam } from '@nestjs/swagger';
