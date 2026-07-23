@@ -16,6 +16,8 @@ import { FileModule } from './infrastructure/file/file.module';
 import { ResumesModule } from './modules/resumes/resumes.module';
 import { JobDescriptionsModule } from './modules/job-descriptions/job-descriptions.module';
 import { FilesModule } from './modules/files/files.module';
+import { AIModule } from './infrastructure/ai/ai.module';
+import { ChatModule } from './modules/chat/chat.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { validate } from './config/env.validation';
 
@@ -59,6 +61,7 @@ import { validate } from './config/env.validation';
     RedisModule,
     StorageModule,
     FileModule,
+    AIModule,
 
     // ── Feature Modules ───────────────────────────────────
     HealthModule,
@@ -67,8 +70,8 @@ import { validate } from './config/env.validation';
     ResumesModule,
     JobDescriptionsModule,
     FilesModule,
+    ChatModule,
     // Future modules added here per phase:
-    // ChatModule       — Phase 3
     // PromptsModule    — Phase 4
     // RagModule        — Phase 5
     // InterviewsModule — Phase 6
