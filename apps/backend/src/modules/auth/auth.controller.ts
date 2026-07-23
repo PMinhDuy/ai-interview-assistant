@@ -17,7 +17,7 @@ import { Throttle } from '@nestjs/throttler';
 
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import type {
+import {
   RegisterDto,
   LoginDto,
   RefreshTokenDto,

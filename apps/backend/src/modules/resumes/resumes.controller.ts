@@ -25,8 +25,7 @@ import {
 } from '@nestjs/swagger';
 
 import { ResumesService } from './resumes.service';
-import type { ListResumesQueryDto} from './dto/resume.dto';
-import { ResumeResponseDto } from './dto/resume.dto';
+import { ListResumesQueryDto, ResumeResponseDto } from './dto/resume.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { multerConfig, documentFileFilter } from '../../common/config/multer.config';

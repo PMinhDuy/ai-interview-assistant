@@ -27,9 +27,8 @@ import {
 import { IsString, MinLength } from 'class-validator';
 
 import { JobDescriptionsService } from './job-descriptions.service';
-import type {
-  ListJobDescriptionsQueryDto} from './dto/job-description.dto';
 import {
+  ListJobDescriptionsQueryDto,
   CreateJobDescriptionDto,
   JobDescriptionResponseDto,
 } from './dto/job-description.dto';
