@@ -11,13 +11,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
-export enum ExperienceLevel {
-  JUNIOR = 'JUNIOR',
-  MID = 'MID',
-  SENIOR = 'SENIOR',
-  LEAD = 'LEAD',
-  STAFF = 'STAFF',
-}
+import { ExperienceLevel } from '@prisma/client';
 
 export class CreateJobDescriptionDto {
   @ApiProperty({ example: 'Senior React Developer' })

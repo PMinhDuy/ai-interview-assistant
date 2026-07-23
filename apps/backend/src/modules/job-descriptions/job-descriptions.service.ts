@@ -59,7 +59,7 @@ export class JobDescriptionsService {
       company: dto.company,
       filename: storageKey,
       extractedText: extracted.text,
-      experienceLevel: (dto.experienceLevel as ExperienceLevel) ?? ExperienceLevel.MID,
+      experienceLevel: dto.experienceLevel ?? ExperienceLevel.MID,
     });
 
     this.logger.log(`JD created from file: ${jd.id}`);
@@ -79,7 +79,7 @@ export class JobDescriptionsService {
       title: dto.title,
       company: dto.company,
       extractedText: dto.rawText.trim(),
-      experienceLevel: (dto.experienceLevel as ExperienceLevel) ?? ExperienceLevel.MID,
+      experienceLevel: dto.experienceLevel ?? ExperienceLevel.MID,
     });
 
     this.logger.log(`JD created from text: ${jd.id}`);
