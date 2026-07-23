@@ -108,7 +108,7 @@ export class ResumeRepository extends BaseRepository {
         ...(extras?.extractedText !== undefined
           ? { extractedText: extras.extractedText }
           : {}),
-        ...(extras?.metadata !== undefined ? { metadata: extras.metadata as Prisma.InputJsonValue } : {}),
+        ...(extras?.metadata !== undefined ? { metadata: extras.metadata as object } : {}),
       },
     });
   }
