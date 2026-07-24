@@ -18,6 +18,7 @@ import { JobDescriptionsModule } from './modules/job-descriptions/job-descriptio
 import { FilesModule } from './modules/files/files.module';
 import { AIModule } from './infrastructure/ai/ai.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { PromptsModule } from './modules/prompts/prompts.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { validate } from './config/env.validation';
 
@@ -71,8 +72,8 @@ import { validate } from './config/env.validation';
     JobDescriptionsModule,
     FilesModule,
     ChatModule,
+    PromptsModule,
     // Future modules added here per phase:
-    // PromptsModule    — Phase 4
     // RagModule        — Phase 5
     // InterviewsModule — Phase 6
     // EvaluationsModule — Phase 7
