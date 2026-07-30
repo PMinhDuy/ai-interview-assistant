@@ -162,4 +162,14 @@ export class InterviewsRepository extends BaseRepository {
       include: { evaluation: true, session: true },
     });
   }
+
+  async recordUserAnswer(questionId: string, userAnswer: string) {
+    return this.prisma.question.update({
+      where: { id: questionId },
+      data: {
+        userAnswer,
+        answeredAt: new Date(),
+      },
+    });
+  }
 }

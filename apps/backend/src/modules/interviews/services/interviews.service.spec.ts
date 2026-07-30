@@ -13,6 +13,8 @@ const mockInterviewsRepository = {
   createSession: jest.fn(),
   findSessionById: jest.fn(),
   findSessionsByUserId: jest.fn(),
+  findQuestionById: jest.fn(),
+  recordUserAnswer: jest.fn(),
   updateSessionStatus: jest.fn(),
   updateCurrentQuestionIndex: jest.fn(),
   createQuestionsMany: jest.fn(),
@@ -151,6 +153,43 @@ describe('InterviewsService', () => {
         'COMPLETED',
       );
       expect(result.completed).toBe(true);
+    });
+  });
+
+  describe('submitAnswer', () => {
+    it('should record answer in database and advance to next question', async () => {
+      const session = {
+        id: 'session-123',
+        status: 'ACTIVE',
+        currentQuestionIndex: 0,
+        questions: [
+          { id: 'q-1', content: 'Q1' },
+          { id: 'q-2', content: 'Q2' },
+        ],
+      };
+
+      mockInterviewsRepository.findSessionById.mockResolvedValue(session);
+      mockInterviewsRepository.findQuestionById.mockResolvedValue({
+        id: 'q-1',
+        sessionId: 'session-123',
+      });
+      mockInterviewsRepository.recordUserAnswer.mockResolvedValue({
+        id: 'q-1',
+        userAnswer: 'My detailed answer...',
+        answeredAt: new Date(),
+      });
+
+      const res = await service.submitAnswer('session-123', 'user-123', {
+        questionId: 'q-1',
+        userAnswer: 'My detailed answer...',
+      });
+
+      expect(mockInterviewsRepository.recordUserAnswer).toHaveBeenCalledWith(
+        'q-1',
+        'My detailed answer...',
+      );
+      expect(res.success).toBe(true);
+      expect(res.userAnswer).toBe('My detailed answer...');
     });
   });
 });

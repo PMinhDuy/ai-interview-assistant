@@ -277,6 +277,8 @@ model Question {
   expectedAnswer    String?          @db.Text
   hints             String[]
   followUpQuestions String[]
+  userAnswer        String?          @db.Text
+  answeredAt        DateTime?
   
   createdAt DateTime @default(now())
 

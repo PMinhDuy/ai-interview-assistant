@@ -12,6 +12,7 @@ import { JobDescriptionsService } from '../../job-descriptions/job-descriptions.
 import {
   CreateInterviewSessionDto,
   GenerateQuestionsDto,
+  SubmitAnswerDto,
   UpdateInterviewSessionStatusDto,
 } from '../dto/interview.dto';
 
@@ -195,6 +196,28 @@ export class InterviewsService {
       currentIndex: nextIndex,
       totalQuestions: session.questions.length,
       question: session.questions[nextIndex],
+    };
+  }
+
+  async submitAnswer(sessionId: string, userId: string, dto: SubmitAnswerDto) {
+    const session = await this.getSession(sessionId, userId);
+    const question = await this.interviewsRepo.findQuestionById(dto.questionId);
+
+    if (!question || question.sessionId !== sessionId) {
+      throw new NotFoundException(`Question with ID ${dto.questionId} not found in this interview session`);
+    }
+
+    const recorded = await this.interviewsRepo.recordUserAnswer(dto.questionId, dto.userAnswer);
+    this.logger.log(`Recorded candidate answer for question ${dto.questionId} in session ${sessionId}`);
+
+    const nextResult = await this.nextQuestion(sessionId, userId);
+
+    return {
+      success: true,
+      questionId: dto.questionId,
+      userAnswer: dto.userAnswer,
+      answeredAt: recorded.answeredAt,
+      next: nextResult,
     };
   }
 }
