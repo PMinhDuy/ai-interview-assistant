@@ -3,7 +3,8 @@
 # ==============================================================================
 # AI Interview Assistant - Local Infrastructure Setup Script
 # ==============================================================================
-# Script này được dùng để khởi chạy & kiểm tra toàn bộ container local (Postgres, Redis, Ollama).
+# Script này được dùng để khởi chạy & kiểm tra các dịch vụ local (PostgreSQL, Redis).
+# AI Model (LLM & Embeddings) sử dụng Google Gemini Cloud API (0 MB local RAM).
 # ==============================================================================
 
 set -e
@@ -30,11 +31,6 @@ log_warning() {
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
-
-TTY_FLAG=""
-if [ -t 1 ]; then
-    TTY_FLAG="-it"
-fi
 
 # ------------------------------------------------------------------------------
 # 1. Kiểm tra Docker & Docker Compose
@@ -69,10 +65,10 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 3. Khởi chạy Docker Containers
+# 3. Khởi chạy Docker Containers (PostgreSQL + pgvector, Redis)
 # ------------------------------------------------------------------------------
-log_info "Đang khởi chạy Docker Compose (PostgreSQL, Redis, Ollama)..."
-docker compose up -d
+log_info "Đang khởi chạy Docker Compose (PostgreSQL, Redis)..."
+docker compose up -d --remove-orphans
 
 # ------------------------------------------------------------------------------
 # 4. Kiểm tra Health Check của các Container
@@ -107,35 +103,9 @@ wait_for_container() {
 
 wait_for_container "ai-interview-postgres"
 wait_for_container "ai-interview-redis"
-wait_for_container "ai-interview-ollama"
 
 # ------------------------------------------------------------------------------
-# 5. Kiểm tra & Tải các AI Model cơ bản trong Ollama
-# ------------------------------------------------------------------------------
-log_info "Kiểm tra các mô hình LLM trong Ollama..."
-
-if docker exec ai-interview-ollama ollama list &> /dev/null; then
-    # Kéo model llama3 nếu chưa có
-    if ! docker exec ai-interview-ollama ollama list | grep -q "llama3"; then
-        log_info "Đang tải model 'llama3' vào Ollama (có thể mất ít phút)..."
-        docker exec $TTY_FLAG ai-interview-ollama ollama pull llama3 || log_warning "Không thể tự động pull llama3. Bạn có thể tự chạy: docker exec -it ai-interview-ollama ollama pull llama3"
-    else
-        log_success "Model 'llama3' đã có sẵn."
-    fi
-
-    # Kéo model nomic-embed-text nếu chưa có
-    if ! docker exec ai-interview-ollama ollama list | grep -q "nomic-embed-text"; then
-        log_info "Đang tải model embedding 'nomic-embed-text' vào Ollama..."
-        docker exec $TTY_FLAG ai-interview-ollama ollama pull nomic-embed-text || log_warning "Không thể tự động pull nomic-embed-text."
-    else
-        log_success "Model 'nomic-embed-text' đã có sẵn."
-    fi
-else
-    log_warning "Không thể kết nối tới Ollama CLI bên trong container."
-fi
-
-# ------------------------------------------------------------------------------
-# 6. Báo cáo trạng thái hoàn tất
+# 5. Báo cáo trạng thái hoàn tất
 # ------------------------------------------------------------------------------
 echo ""
 log_info "Trạng thái các container hiện tại:"
@@ -146,6 +116,6 @@ log_success "🎉 Khởi tạo hạ tầng container local hoàn tất!"
 echo -e "${BLUE}====================================================${NC}"
 echo -e " 🐘 PostgreSQL : ${GREEN}localhost:5432${NC}"
 echo -e " 🔴 Redis      : ${GREEN}localhost:6379${NC}"
-echo -e " 🦙 Ollama API : ${GREEN}http://localhost:11434${NC}"
+echo -e " ☁️ AI Engine  : ${GREEN}Google Gemini Cloud API${NC}"
 echo -e "${BLUE}====================================================${NC}"
 echo -e "💡 Tiến hành chạy app: ${YELLOW}pnpm dev${NC}"
