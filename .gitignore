@@ -46,3 +46,8 @@ apps/backend/uploads/
 
 # Prisma
 apps/backend/prisma/migrations/*/migration.sql
+
+# Agent workspace files
+.agent/
+.agents/
+
