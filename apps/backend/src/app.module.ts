@@ -20,6 +20,7 @@ import { AIModule } from './infrastructure/ai/ai.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { PromptsModule } from './modules/prompts/prompts.module';
 import { RAGModule } from './modules/rag/rag.module';
+import { InterviewsModule } from './modules/interviews/interviews.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { validate } from './config/env.validation';
 
@@ -75,8 +76,8 @@ import { validate } from './config/env.validation';
     ChatModule,
     PromptsModule,
     RAGModule,
+    InterviewsModule,
     // Future modules added here per phase:
-    // InterviewsModule — Phase 6
     // EvaluationsModule — Phase 7
   ],
   providers: [
