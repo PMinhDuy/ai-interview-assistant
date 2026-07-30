@@ -21,6 +21,7 @@ import { ChatModule } from './modules/chat/chat.module';
 import { PromptsModule } from './modules/prompts/prompts.module';
 import { RAGModule } from './modules/rag/rag.module';
 import { InterviewsModule } from './modules/interviews/interviews.module';
+import { EvaluationsModule } from './modules/evaluations/evaluations.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { validate } from './config/env.validation';
 
@@ -78,8 +79,7 @@ import { validate } from './config/env.validation';
     PromptsModule,
     RAGModule,
     InterviewsModule,
-    // Future modules added here per phase:
-    // EvaluationsModule — Phase 7
+    EvaluationsModule,
   ],
   providers: [
     // Apply rate limiting globally

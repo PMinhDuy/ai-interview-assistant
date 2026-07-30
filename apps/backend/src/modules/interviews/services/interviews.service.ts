@@ -9,6 +9,7 @@ import { InterviewsRepository } from '../repositories/interviews.repository';
 import { QuestionGeneratorService } from './question-generator.service';
 import { ResumesService } from '../../resumes/resumes.service';
 import { JobDescriptionsService } from '../../job-descriptions/job-descriptions.service';
+import { EvaluationsService } from '../../evaluations/services/evaluations.service';
 import {
   CreateInterviewSessionDto,
   GenerateQuestionsDto,
@@ -26,6 +27,7 @@ export class InterviewsService {
     private readonly questionGenerator: QuestionGeneratorService,
     private readonly resumesService: ResumesService,
     private readonly jobDescriptionsService: JobDescriptionsService,
+    private readonly evaluationsService: EvaluationsService,
     private readonly config: ConfigService,
   ) {
     const provider = this.config.get<string>('AI_PROVIDER', 'gemini');
@@ -200,24 +202,51 @@ export class InterviewsService {
   }
 
   async submitAnswer(sessionId: string, userId: string, dto: SubmitAnswerDto) {
-    await this.getSession(sessionId, userId);
+    const session = await this.getSession(sessionId, userId);
     const question = await this.interviewsRepo.findQuestionById(dto.questionId);
 
     if (!question || question.sessionId !== sessionId) {
       throw new NotFoundException(`Question with ID ${dto.questionId} not found in this interview session`);
     }
 
+    // 1. Record candidate answer in PostgreSQL DB
     const recorded = await this.interviewsRepo.recordUserAnswer(dto.questionId, dto.userAnswer);
     this.logger.log(`Recorded candidate answer for question ${dto.questionId} in session ${sessionId}`);
 
+    // 2. Evaluate answer using AI LLM
+    let evaluation = null;
+    try {
+      evaluation = await this.evaluationsService.evaluateAnswer({
+        question,
+        userAnswer: dto.userAnswer,
+        resumeText: session.resume?.extractedText || undefined,
+        jobDescriptionText: session.jobDescription?.extractedText || undefined,
+      });
+    } catch (evalErr) {
+      this.logger.error(`Evaluation failed for question ${dto.questionId}: ${(evalErr as Error).message}`);
+    }
+
+    // 3. Advance to next question
     const nextResult = await this.nextQuestion(sessionId, userId);
+
+    // 4. Generate final session report if session just completed
+    let report = null;
+    if (nextResult.completed) {
+      try {
+        report = await this.evaluationsService.generateSessionReport(sessionId, userId);
+      } catch (reportErr) {
+        this.logger.error(`Session report generation failed for session ${sessionId}: ${(reportErr as Error).message}`);
+      }
+    }
 
     return {
       success: true,
       questionId: dto.questionId,
       userAnswer: dto.userAnswer,
       answeredAt: recorded.answeredAt,
+      evaluation,
       next: nextResult,
+      report,
     };
   }
 }

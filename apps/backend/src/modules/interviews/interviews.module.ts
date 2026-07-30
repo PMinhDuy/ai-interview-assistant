@@ -8,6 +8,7 @@ import { RAGModule } from '../rag/rag.module';
 import { PromptsModule } from '../prompts/prompts.module';
 import { ResumesModule } from '../resumes/resumes.module';
 import { JobDescriptionsModule } from '../job-descriptions/job-descriptions.module';
+import { EvaluationsModule } from '../evaluations/evaluations.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { JobDescriptionsModule } from '../job-descriptions/job-descriptions.modu
     PromptsModule,
     ResumesModule,
     JobDescriptionsModule,
+    EvaluationsModule,
   ],
   controllers: [InterviewsController],
   providers: [

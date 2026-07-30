@@ -7,6 +7,7 @@ import { InterviewsRepository } from '../repositories/interviews.repository';
 import { QuestionGeneratorService } from './question-generator.service';
 import { ResumesService } from '../../resumes/resumes.service';
 import { JobDescriptionsService } from '../../job-descriptions/job-descriptions.service';
+import { EvaluationsService } from '../../evaluations/services/evaluations.service';
 import { Difficulty, InterviewStatus, InterviewType, QuestionCategory } from '@prisma/client';
 
 const mockInterviewsRepository = {
@@ -32,6 +33,11 @@ const mockJobDescriptionsService = {
   findOne: jest.fn(),
 };
 
+const mockEvaluationsService = {
+  evaluateAnswer: jest.fn(),
+  generateSessionReport: jest.fn(),
+};
+
 const mockConfigService = {
   get: jest.fn((key: string, defaultVal: string) => defaultVal),
 };
@@ -47,6 +53,7 @@ describe('InterviewsService', () => {
         { provide: QuestionGeneratorService, useValue: mockQuestionGenerator },
         { provide: ResumesService, useValue: mockResumesService },
         { provide: JobDescriptionsService, useValue: mockJobDescriptionsService },
+        { provide: EvaluationsService, useValue: mockEvaluationsService },
         { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
@@ -157,7 +164,7 @@ describe('InterviewsService', () => {
   });
 
   describe('submitAnswer', () => {
-    it('should record answer in database and advance to next question', async () => {
+    it('should record answer, trigger evaluation, and advance session', async () => {
       const session = {
         id: 'session-123',
         status: 'ACTIVE',
@@ -178,6 +185,10 @@ describe('InterviewsService', () => {
         userAnswer: 'My detailed answer...',
         answeredAt: new Date(),
       });
+      mockEvaluationsService.evaluateAnswer.mockResolvedValue({
+        id: 'eval-1',
+        scores: { overall: 85 },
+      });
 
       const res = await service.submitAnswer('session-123', 'user-123', {
         questionId: 'q-1',
@@ -188,8 +199,10 @@ describe('InterviewsService', () => {
         'q-1',
         'My detailed answer...',
       );
+      expect(mockEvaluationsService.evaluateAnswer).toHaveBeenCalled();
       expect(res.success).toBe(true);
       expect(res.userAnswer).toBe('My detailed answer...');
+      expect(res.evaluation?.id).toBe('eval-1');
     });
   });
 });
