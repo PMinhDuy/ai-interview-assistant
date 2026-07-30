@@ -5,17 +5,11 @@
 # Services:
 #   postgres  — PostgreSQL 16 with pgvector extension
 #   redis     — Redis 7 for caching + session store
-#   ollama    — Local LLM runtime (llama3, mistral, etc.)
 #   minio     — S3-compatible local object storage (optional)
 #
 # Usage:
 #   docker compose up -d            # start all services
 #   docker compose up -d postgres redis  # core only
-#   docker compose logs -f ollama   # tail Ollama logs
-#
-# AIP-C01 Note:
-#   Ollama mirrors Amazon Bedrock's role locally.
-#   When AWS_BEDROCK_ENABLED=true, requests route to Bedrock instead.
 # ============================================================
 
 services:
@@ -66,40 +60,6 @@ services:
     networks:
       - ai-interview-network
 
-  # ── Ollama ────────────────────────────────────────────────
-  # Local LLM runtime — runs llama3, mistral, qwen2.5, etc.
-  # This is the LOCAL equivalent of Amazon Bedrock.
-  # Cost: $0/month (vs ~$3-$15 per million tokens on Bedrock)
-  # Tradeoff: Slower inference, requires GPU or good CPU
-  # When to use Bedrock: Production, scale, better models
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ai-interview-ollama
-    restart: unless-stopped
-    ports:
-      - "${OLLAMA_PORT:-11434}:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_KEEP_ALIVE=24h
-      - OLLAMA_MAX_LOADED_MODELS=2
-    # Uncomment for GPU support (NVIDIA):
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    networks:
-      - ai-interview-network
-
   # ── MinIO (Optional S3-compatible storage) ────────────────
   # Used when STORAGE_PROVIDER=local (default)
   # Provides S3-compatible API so switching to real S3 is trivial
@@ -133,8 +93,6 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
-    driver: local
-  ollama_data:
     driver: local
   minio_data:
     driver: local

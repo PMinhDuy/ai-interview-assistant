@@ -12,11 +12,13 @@ import {
 enum AIProvider {
   LOCAL = 'local',
   BEDROCK = 'bedrock',
+  GEMINI = 'gemini',
 }
 
 enum EmbeddingProvider {
   LOCAL = 'local',
   TITAN = 'titan',
+  GEMINI = 'gemini',
 }
 
 enum StorageProvider {
@@ -66,11 +68,11 @@ class EnvironmentVariables {
 
   @IsEnum(AIProvider)
   @IsOptional()
-  AI_PROVIDER: AIProvider = AIProvider.LOCAL;
+  AI_PROVIDER: AIProvider = AIProvider.GEMINI;
 
   @IsEnum(EmbeddingProvider)
   @IsOptional()
-  EMBEDDING_PROVIDER: EmbeddingProvider = EmbeddingProvider.LOCAL;
+  EMBEDDING_PROVIDER: EmbeddingProvider = EmbeddingProvider.GEMINI;
 
   @IsEnum(StorageProvider)
   @IsOptional()
@@ -82,11 +84,15 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
-  OLLAMA_BASE_URL: string = 'http://localhost:11434';
+  GEMINI_API_KEY?: string;
 
   @IsString()
   @IsOptional()
-  OLLAMA_DEFAULT_MODEL: string = 'llama3';
+  GEMINI_MODEL?: string = 'gemini-flash-latest';
+
+  @IsString()
+  @IsOptional()
+  GEMINI_EMBEDDING_MODEL?: string = 'gemini-embedding-001';
 
   @IsString()
   @IsOptional()

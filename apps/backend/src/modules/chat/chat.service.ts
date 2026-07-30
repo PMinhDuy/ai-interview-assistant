@@ -15,7 +15,11 @@ export class ChatService {
     private readonly llmProvider: LLMProvider,
     private readonly config: ConfigService,
   ) {
-    this.defaultModel = this.config.get<string>('OLLAMA_DEFAULT_MODEL', 'llama3');
+    const provider = this.config.get<string>('AI_PROVIDER', 'gemini');
+    this.defaultModel =
+      provider.toLowerCase() === 'gemini'
+        ? this.config.get<string>('GEMINI_MODEL', 'gemini-flash-latest')
+        : this.config.get<string>('OLLAMA_DEFAULT_MODEL', 'llama3');
   }
 
   async createConversation(userId: string, dto: CreateConversationDto) {

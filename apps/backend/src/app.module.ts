@@ -31,8 +31,9 @@ import { validate } from './config/env.validation';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: [
-        resolve(__dirname, '../../../../.env.local'),
+        resolve(process.cwd(), '.env'),
         resolve(__dirname, '../../../../.env'),
+        resolve(__dirname, '../../.env'),
       ],
       validate, // Joi/Zod validation of env vars at startup
     }),

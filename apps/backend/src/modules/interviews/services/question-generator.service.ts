@@ -69,7 +69,7 @@ export class QuestionGeneratorService {
             content: prompt,
           },
         ],
-        model: context.model || 'llama3.2',
+        model: context.model || 'gemini-flash-latest',
       });
 
       const parsedQuestions = this.parseQuestionsResponse(response.content, context.difficulty);

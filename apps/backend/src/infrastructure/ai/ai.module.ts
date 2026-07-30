@@ -1,10 +1,10 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LLMProvider, EmbeddingProvider } from '../providers/provider.interface';
-import { LocalLLMProvider } from './providers/local-llm.provider';
 import { BedrockProvider } from './providers/bedrock.provider';
-import { LocalEmbeddingProvider } from './providers/local-embedding.provider';
+import { GeminiLLMProvider } from './providers/gemini-llm.provider';
 import { TitanEmbeddingProvider } from './providers/titan-embedding.provider';
+import { GeminiEmbeddingProvider } from './providers/gemini-embedding.provider';
 
 /**
  * AIModule — Provider Factory
@@ -15,41 +15,56 @@ import { TitanEmbeddingProvider } from './providers/titan-embedding.provider';
 @Global()
 @Module({
   providers: [
-    LocalLLMProvider,
     BedrockProvider,
-    LocalEmbeddingProvider,
+    GeminiLLMProvider,
     TitanEmbeddingProvider,
+    GeminiEmbeddingProvider,
     {
       provide: LLMProvider,
-      inject: [ConfigService, LocalLLMProvider, BedrockProvider],
+      inject: [ConfigService, BedrockProvider, GeminiLLMProvider],
       useFactory: (
         config: ConfigService,
-        local: LocalLLMProvider,
         bedrock: BedrockProvider,
+        gemini: GeminiLLMProvider,
       ): LLMProvider => {
-        const provider = config.get<string>('AI_PROVIDER', 'local');
-        if (provider === 'bedrock') {
-          return bedrock;
+        const provider = config.get<string>('AI_PROVIDER', 'gemini');
+        switch (provider.toLowerCase()) {
+          case 'bedrock':
+            return bedrock;
+          case 'gemini':
+          case 'google':
+          default:
+            return gemini;
         }
-        return local;
       },
     },
     {
       provide: EmbeddingProvider,
-      inject: [ConfigService, LocalEmbeddingProvider, TitanEmbeddingProvider],
+      inject: [ConfigService, TitanEmbeddingProvider, GeminiEmbeddingProvider],
       useFactory: (
         config: ConfigService,
-        local: LocalEmbeddingProvider,
         titan: TitanEmbeddingProvider,
+        gemini: GeminiEmbeddingProvider,
       ): EmbeddingProvider => {
-        const provider = config.get<string>('EMBEDDING_PROVIDER', 'local');
-        if (provider === 'titan') {
-          return titan;
+        const provider = config.get<string>('EMBEDDING_PROVIDER', 'gemini');
+        switch (provider.toLowerCase()) {
+          case 'titan':
+            return titan;
+          case 'gemini':
+          case 'google':
+          default:
+            return gemini;
         }
-        return local;
       },
     },
   ],
-  exports: [LLMProvider, EmbeddingProvider],
+  exports: [
+    LLMProvider,
+    EmbeddingProvider,
+    BedrockProvider,
+    GeminiLLMProvider,
+    TitanEmbeddingProvider,
+    GeminiEmbeddingProvider,
+  ],
 })
 export class AIModule {}

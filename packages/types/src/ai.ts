@@ -2,8 +2,8 @@
 // These types form the abstraction layer.
 // Business logic uses ONLY these types, never SDK-specific types.
 
-export type AIProvider = 'local' | 'bedrock';
-export type EmbeddingProvider = 'local' | 'titan';
+export type AIProvider = 'local' | 'bedrock' | 'gemini';
+export type EmbeddingProvider = 'local' | 'titan' | 'gemini';
 export type StorageProvider = 'local' | 's3';
 export type KnowledgeProvider = 'custom' | 'bedrock-kb';
 
@@ -28,7 +28,10 @@ export type BedrockModel =
   | 'amazon.nova-pro-v1:0'
   | 'amazon.nova-lite-v1:0';
 
-export type EmbeddingModel = 'nomic-embed-text' | 'amazon.titan-embed-text-v2:0';
+export type EmbeddingModel =
+  | 'nomic-embed-text'
+  | 'amazon.titan-embed-text-v2:0'
+  | 'gemini-embedding-001';
 
 export type LLMMessage = {
   role: 'user' | 'assistant' | 'system';

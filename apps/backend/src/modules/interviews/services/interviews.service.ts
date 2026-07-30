@@ -27,7 +27,11 @@ export class InterviewsService {
     private readonly jobDescriptionsService: JobDescriptionsService,
     private readonly config: ConfigService,
   ) {
-    this.defaultModel = this.config.get<string>('OLLAMA_DEFAULT_MODEL', 'llama3');
+    const provider = this.config.get<string>('AI_PROVIDER', 'gemini');
+    this.defaultModel =
+      provider.toLowerCase() === 'gemini'
+        ? this.config.get<string>('GEMINI_MODEL', 'gemini-flash-latest')
+        : this.config.get<string>('OLLAMA_DEFAULT_MODEL', 'llama3');
   }
 
   async createSession(userId: string, dto: CreateInterviewSessionDto) {
