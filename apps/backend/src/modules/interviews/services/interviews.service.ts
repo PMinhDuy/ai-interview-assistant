@@ -200,7 +200,7 @@ export class InterviewsService {
   }
 
   async submitAnswer(sessionId: string, userId: string, dto: SubmitAnswerDto) {
-    const session = await this.getSession(sessionId, userId);
+    await this.getSession(sessionId, userId);
     const question = await this.interviewsRepo.findQuestionById(dto.questionId);
 
     if (!question || question.sessionId !== sessionId) {
