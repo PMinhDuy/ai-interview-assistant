@@ -39,12 +39,16 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         run: pnpm --filter @repo/frontend build
 
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/frontend/.next --project-name=ai-interview-assistant --branch=production
+      - name: Deploy to Cloudflare Pages via Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd apps/frontend
+          npx wrangler pages deploy .next \
+            --project-name=ai-interview-assistant \
+            --branch=production \
+            --commit-message="Deploy ${{ github.sha }}"
 
       - name: Notify deployment success
         run: |

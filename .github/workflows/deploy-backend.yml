@@ -27,18 +27,23 @@ jobs:
     name: Build & Deploy Backend Lambda
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # Required for OIDC auth with AWS
+      id-token: write
       contents: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: GitHubActionsDeploy
           aws-region: ${{ env.AWS_REGION }}
+          # Allows fallback if role-to-assume is empty
+          mask-aws-account-id: 'no'
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -55,9 +60,10 @@ jobs:
 
       - name: Create ECR repository (if not exists)
         run: |
-          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} \
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }} \
             || aws ecr create-repository \
                 --repository-name ${{ env.ECR_REPOSITORY }} \
+                --region ${{ env.AWS_REGION }} \
                 --image-scanning-configuration scanOnPush=true
 
       - name: Build Docker image
@@ -71,7 +77,6 @@ jobs:
       - name: Push image to ECR
         run: |
           docker push ${{ steps.meta.outputs.image-uri }}
-          # Also push as stage-latest tag
           REGISTRY=${{ steps.login-ecr.outputs.registry }}
           docker tag ${{ steps.meta.outputs.image-uri }} \
             "${REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-latest"
