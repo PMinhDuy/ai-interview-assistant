@@ -12,6 +12,7 @@ import {
   FileTextOutlined,
   UserOutlined,
   LogoutOutlined,
+  SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   RobotOutlined,
@@ -54,6 +55,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       ),
     },
     { type: 'divider' as const },
+    {
+      key: 'settings',
+      icon: <SettingOutlined />,
+      label: <Link href="/settings">Account Settings</Link>,
+    },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
