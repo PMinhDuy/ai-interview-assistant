@@ -51,3 +51,11 @@ apps/backend/prisma/migrations/*/migration.sql
 .agent/
 .agents/
 
+
+# Production environment secrets
+apps/backend/.env.prod
+apps/backend/.env.staging
+
+# Deploy artifacts
+deploy/*.log
+.serverless/

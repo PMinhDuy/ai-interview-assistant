@@ -1,0 +1,106 @@
+service: ai-interview-backend
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  # Use Container Image instead of zip (avoids 50MB limit for NestJS)
+  # image.uri is set when deploying with Docker ECR image
+  stage: ${opt:stage, 'prod'}
+  region: ${opt:region, 'ap-southeast-1'}
+  
+  # IAM permissions for Lambda function
+  iam:
+    role:
+      statements:
+        # S3 access for file uploads
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:DeleteObject
+          Resource: "arn:aws:s3:::${self:custom.s3BucketName}/*"
+        - Effect: Allow
+          Action:
+            - s3:ListBucket
+          Resource: "arn:aws:s3:::${self:custom.s3BucketName}"
+        # CloudWatch logs
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "*"
+
+  # Environment variables — set real values via AWS Parameter Store or .env.prod
+  environment:
+    NODE_ENV: production
+    DATABASE_URL: ${env:DATABASE_URL}
+    DIRECT_URL: ${env:DIRECT_URL}
+    JWT_SECRET: ${env:JWT_SECRET}
+    JWT_REFRESH_SECRET: ${env:JWT_REFRESH_SECRET}
+    JWT_ACCESS_EXPIRES_IN: "15m"
+    JWT_REFRESH_EXPIRES_IN: "7d"
+    AI_PROVIDER: gemini
+    GEMINI_API_KEY: ${env:GEMINI_API_KEY}
+    STORAGE_PROVIDER: s3
+    AWS_REGION: ${self:provider.region}
+    AWS_S3_BUCKET: ${self:custom.s3BucketName}
+    # CORS: set to your Cloudflare Pages production URL
+    CORS_ORIGINS: ${env:CORS_ORIGINS, 'https://ai-interview-assistant.pages.dev'}
+
+custom:
+  s3BucketName: ai-interview-assistant-uploads-${self:provider.stage}
+
+functions:
+  api:
+    # Option A: Container Image (recommended for NestJS due to bundle size)
+    image:
+      uri: ${env:ECR_IMAGE_URI}
+      command:
+        - lambda.handler
+    # Option B (zip-based, use only if bundle < 50MB unzipped):
+    # handler: dist/lambda.handler
+    # package:
+    #   artifact: dist.zip
+    
+    memorySize: 512    # MB — increase to 1024 for heavy Gemini calls
+    timeout: 30        # seconds — max for API Gateway is 29s
+    
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+      - httpApi:
+          path: /
+          method: ANY
+
+resources:
+  Resources:
+    # S3 Bucket for file uploads (Resumes, Job Descriptions)
+    UploadsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.s3BucketName}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              AllowedOrigins:
+                - "https://ai-interview-assistant.pages.dev"
+                - "http://localhost:3001"
+              AllowedHeaders:
+                - "*"
+              MaxAge: 3000
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+
+plugins:
+  - serverless-offline   # for local testing: pnpm sls offline

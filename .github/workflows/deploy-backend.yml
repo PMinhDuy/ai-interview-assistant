@@ -1,0 +1,112 @@
+name: 🚀 Deploy Backend to AWS Lambda
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - 'packages/types/**'
+      - 'deploy/deploy-backend.sh'
+
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Deployment stage'
+        required: true
+        default: 'prod'
+        type: choice
+        options: [prod, staging]
+
+env:
+  AWS_REGION: ap-southeast-1
+  ECR_REPOSITORY: ai-interview-backend
+  STAGE: ${{ github.event.inputs.stage || 'prod' }}
+
+jobs:
+  deploy-backend:
+    name: Build & Deploy Backend Lambda
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for OIDC auth with AWS
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          IMAGE_URI="${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-${SHORT_SHA}"
+          echo "image-uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          echo "short-sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Create ECR repository (if not exists)
+        run: |
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} \
+            || aws ecr create-repository \
+                --repository-name ${{ env.ECR_REPOSITORY }} \
+                --image-scanning-configuration scanOnPush=true
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -f apps/backend/Dockerfile.lambda \
+            -t ${{ steps.meta.outputs.image-uri }} \
+            .
+
+      - name: Push image to ECR
+        run: |
+          docker push ${{ steps.meta.outputs.image-uri }}
+          # Also push as stage-latest tag
+          REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          docker tag ${{ steps.meta.outputs.image-uri }} \
+            "${REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-latest"
+          docker push "${REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-latest"
+
+      - name: Install Serverless Framework
+        run: npm install -g serverless
+
+      - name: Deploy via Serverless Framework
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          ECR_IMAGE_URI: ${{ steps.meta.outputs.image-uri }}
+        run: |
+          cd apps/backend
+          serverless deploy \
+            --stage ${{ env.STAGE }} \
+            --region ${{ env.AWS_REGION }} \
+            --verbose
+
+      - name: Run DB Migrations
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd apps/backend
+          npx prisma migrate deploy
+
+      - name: Notify deployment success
+        run: |
+          echo "## ✅ Backend Deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "- **Stage:** ${{ env.STAGE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image:** \`${{ steps.meta.outputs.image-uri }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ steps.meta.outputs.short-sha }}" >> $GITHUB_STEP_SUMMARY

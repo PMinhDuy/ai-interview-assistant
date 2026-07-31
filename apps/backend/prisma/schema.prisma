@@ -19,7 +19,10 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
+  // DATABASE_URL: Pooled connection string (Neon/Supabase pgBouncer) for runtime queries
+  // DIRECT_URL: Direct (non-pooled) connection for Prisma migrations
   url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
   extensions = [vector, uuidOssp(map: "uuid-ossp"), pgTrgm(map: "pg_trgm")]
 }
 
