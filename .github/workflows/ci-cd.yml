@@ -193,23 +193,38 @@ jobs:
       - name: "Checkout code"
         uses: actions/checkout@v4
 
-      - name: "Verify Backend Secrets Present"
+      - name: "Verify Backend Secrets/Variables Present"
         run: |
           ERR=0
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then echo "::error::Secret 'AWS_ACCESS_KEY_ID' is missing."; ERR=1; fi
-          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then echo "::error::Secret 'AWS_SECRET_ACCESS_KEY' is missing."; ERR=1; fi
-          if [ -z "${{ secrets.DATABASE_URL }}" ]; then echo "::error::Secret 'DATABASE_URL' is missing."; ERR=1; fi
-          if [ -z "${{ secrets.DIRECT_URL }}" ]; then echo "::error::Secret 'DIRECT_URL' is missing."; ERR=1; fi
-          if [ -z "${{ secrets.JWT_SECRET }}" ]; then echo "::error::Secret 'JWT_SECRET' is missing."; ERR=1; fi
-          if [ -z "${{ secrets.JWT_REFRESH_SECRET }}" ]; then echo "::error::Secret 'JWT_REFRESH_SECRET' is missing."; ERR=1; fi
-          if [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then echo "::error::Secret 'GEMINI_API_KEY' is missing."; ERR=1; fi
-          if [ $ERR -eq 1 ]; then exit 1; fi
+          VAL_AWS_KEY="${{ secrets.AWS_ACCESS_KEY_ID || vars.AWS_ACCESS_KEY_ID }}"
+          VAL_AWS_SECRET="${{ secrets.AWS_SECRET_ACCESS_KEY || vars.AWS_SECRET_ACCESS_KEY }}"
+          VAL_DB="${{ secrets.DATABASE_URL || vars.DATABASE_URL }}"
+          VAL_DIRECT="${{ secrets.DIRECT_URL || vars.DIRECT_URL }}"
+          VAL_JWT="${{ secrets.JWT_SECRET || vars.JWT_SECRET }}"
+          VAL_REFRESH="${{ secrets.JWT_REFRESH_SECRET || vars.JWT_REFRESH_SECRET }}"
+          VAL_GEMINI="${{ secrets.GEMINI_API_KEY || vars.GEMINI_API_KEY }}"
+
+          if [ -z "$VAL_AWS_KEY" ]; then echo "::error::Secret/Var 'AWS_ACCESS_KEY_ID' is missing."; ERR=1; fi
+          if [ -z "$VAL_AWS_SECRET" ]; then echo "::error::Secret/Var 'AWS_SECRET_ACCESS_KEY' is missing."; ERR=1; fi
+          if [ -z "$VAL_DB" ]; then echo "::error::Secret/Var 'DATABASE_URL' is missing."; ERR=1; fi
+          if [ -z "$VAL_DIRECT" ]; then echo "::error::Secret/Var 'DIRECT_URL' is missing."; ERR=1; fi
+          if [ -z "$VAL_JWT" ]; then echo "::error::Secret/Var 'JWT_SECRET' is missing."; ERR=1; fi
+          if [ -z "$VAL_REFRESH" ]; then echo "::error::Secret/Var 'JWT_REFRESH_SECRET' is missing."; ERR=1; fi
+          if [ -z "$VAL_GEMINI" ]; then echo "::error::Secret/Var 'GEMINI_API_KEY' is missing."; ERR=1; fi
+          if [ $ERR -eq 1 ]; then
+            echo "--------------------------------------------------------"
+            echo "❌ REQUIRED SECRETS MISSING ON GITHUB REPOSITORY!"
+            echo "Please go to Settings -> Secrets and variables -> Actions"
+            echo "Under 'Repository secrets', add the missing names shown above."
+            echo "--------------------------------------------------------"
+            exit 1
+          fi
 
       - name: "Configure AWS credentials"
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || vars.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY || vars.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: "Login to Amazon ECR"
@@ -254,12 +269,12 @@ jobs:
 
       - name: "Deploy via Serverless Framework"
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || vars.DIRECT_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || vars.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET || vars.JWT_REFRESH_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || vars.GEMINI_API_KEY }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS || vars.CORS_ORIGINS }}
           ECR_IMAGE_URI: ${{ steps.meta.outputs.image-uri }}
         run: |
           cd apps/backend
@@ -284,8 +299,8 @@ jobs:
 
       - name: "Run Production DB Migrations"
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || vars.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL }}
         run: |
           cd apps/backend
           npx prisma migrate deploy
@@ -310,11 +325,13 @@ jobs:
       - name: "Checkout code"
         uses: actions/checkout@v4
 
-      - name: "Verify Frontend Secrets Present"
+      - name: "Verify Frontend Secrets/Variables Present"
         run: |
           ERR=0
-          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then echo "::error::Secret 'CLOUDFLARE_API_TOKEN' is missing."; ERR=1; fi
-          if [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then echo "::error::Secret 'CLOUDFLARE_ACCOUNT_ID' is missing."; ERR=1; fi
+          VAL_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}"
+          VAL_ACC="${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}"
+          if [ -z "$VAL_TOKEN" ]; then echo "::error::Secret/Var 'CLOUDFLARE_API_TOKEN' is missing."; ERR=1; fi
+          if [ -z "$VAL_ACC" ]; then echo "::error::Secret/Var 'CLOUDFLARE_ACCOUNT_ID' is missing."; ERR=1; fi
           if [ $ERR -eq 1 ]; then exit 1; fi
 
       - name: "Setup pnpm"
@@ -333,13 +350,13 @@ jobs:
 
       - name: "Build Next.js Frontend"
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || vars.NEXT_PUBLIC_API_URL }}
         run: pnpm --filter @repo/frontend build
 
       - name: "Deploy to Cloudflare Pages via Wrangler"
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           cd apps/frontend
           npx wrangler pages deploy .next \
