@@ -34,6 +34,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Verify AWS secrets present
+        run: |
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            echo "::error::GitHub Secret 'AWS_ACCESS_KEY_ID' is missing or empty. Please add it under Repository Secrets."
+            exit 1
+          fi
+          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "::error::GitHub Secret 'AWS_SECRET_ACCESS_KEY' is missing or empty. Please add it under Repository Secrets."
+            exit 1
+          fi
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
