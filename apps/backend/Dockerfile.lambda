@@ -42,5 +42,5 @@ COPY --from=builder /app/apps/backend/node_modules ${LAMBDA_TASK_ROOT}/node_modu
 # Copy Prisma schema
 COPY --from=builder /app/apps/backend/prisma ${LAMBDA_TASK_ROOT}/prisma
 
-# Lambda handler: file.exportedFunction → dist/lambda.handler
-CMD ["lambda.handler"]
+# Lambda handler: file.exportedFunction → src/lambda.handler
+CMD ["src/lambda.handler"]

@@ -53,7 +53,7 @@ functions:
     image:
       uri: ${env:ECR_IMAGE_URI}
       command:
-        - lambda.handler
+        - src/lambda.handler
     memorySize: 512
     timeout: 29
     events:
