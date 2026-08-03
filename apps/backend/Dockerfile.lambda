@@ -15,6 +15,7 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/backend/package.json ./apps/backend/
+COPY apps/backend/prisma ./apps/backend/prisma
 COPY packages/types/package.json ./packages/types/
 COPY packages/tsconfig/package.json ./packages/tsconfig/
 COPY packages/eslint-config/package.json ./packages/eslint-config/
