@@ -17,6 +17,36 @@ env:
   STAGE: prod
 
 jobs:
+  # ── 0. DETECT CHANGED PACKAGES (MONOREPO PATH FILTERING) ────
+  changes:
+    name: 🎯 Detect Changed Packages
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Filter modified paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'apps/backend/**'
+              - 'packages/types/**'
+              - 'packages/tsconfig/**'
+              - 'deploy/deploy-backend.sh'
+              - 'deploy/migrate-prod.sh'
+              - 'pnpm-lock.yaml'
+            frontend:
+              - 'apps/frontend/**'
+              - 'packages/types/**'
+              - 'packages/tsconfig/**'
+              - 'deploy/deploy-frontend.sh'
+              - 'pnpm-lock.yaml'
+
   # ── 1. CI: LINT & TYPECHECK ───────────────────────────────────
   ci-quality:
     name: 🔍 CI: Lint & Typecheck
@@ -52,7 +82,8 @@ jobs:
   ci-test-backend:
     name: 🧪 CI: Backend Tests
     runs-on: ubuntu-latest
-    needs: ci-quality
+    needs: [changes, ci-quality]
+    if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -113,7 +144,7 @@ jobs:
           JWT_SECRET: test-jwt-secret-that-is-at-least-64-chars-long-for-testing-purposes
           JWT_REFRESH_SECRET: test-refresh-secret-at-least-64-chars-long-for-testing-ci
 
-  # ── 3. CI: MONOREPO BUILD ─────────────────────────────────────
+  # ── 3. CI: MONOREPO BUILD CHECK ───────────────────────────────
   ci-build:
     name: 📦 CI: Monorepo Build Check
     runs-on: ubuntu-latest
@@ -144,8 +175,8 @@ jobs:
     name: ⚡ CD: Deploy Backend (AWS Lambda)
     runs-on: ubuntu-latest
     environment: prod
-    needs: [ci-quality, ci-test-backend, ci-build]
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [changes, ci-quality, ci-build]
+    if: github.ref == 'refs/heads/main' && (needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch')
     permissions:
       id-token: write
       contents: read
@@ -251,8 +282,8 @@ jobs:
     name: 🌐 CD: Deploy Frontend (Cloudflare Pages)
     runs-on: ubuntu-latest
     environment: production
-    needs: [ci-quality, ci-build]
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [changes, ci-quality, ci-build]
+    if: github.ref == 'refs/heads/main' && (needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
 
