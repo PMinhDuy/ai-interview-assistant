@@ -1,0 +1,291 @@
+name: 🚀 CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  ECR_REPOSITORY: ai-interview-backend
+  STAGE: prod
+
+jobs:
+  # ── 1. CI: LINT & TYPECHECK ───────────────────────────────────
+  ci-quality:
+    name: 🔍 CI: Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @repo/backend prisma:generate
+
+      - name: Run Lint
+        run: pnpm lint
+
+      - name: Run Typecheck
+        run: pnpm typecheck
+
+  # ── 2. CI: BACKEND TESTS ──────────────────────────────────────
+  ci-test-backend:
+    name: 🧪 CI: Backend Tests
+    runs-on: ubuntu-latest
+    needs: ci-quality
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: ai_interview_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @repo/backend prisma:generate
+
+      - name: Run DB Migrations for Test
+        run: pnpm --filter @repo/backend prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_interview_test
+
+      - name: Run Unit & Integration Tests
+        run: pnpm --filter @repo/backend test:cov
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_interview_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-that-is-at-least-64-chars-long-for-testing-purposes
+          JWT_REFRESH_SECRET: test-refresh-secret-at-least-64-chars-long-for-testing-ci
+
+  # ── 3. CI: MONOREPO BUILD ─────────────────────────────────────
+  ci-build:
+    name: 📦 CI: Monorepo Build Check
+    runs-on: ubuntu-latest
+    needs: ci-quality
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build All Workspaces
+        run: pnpm build
+
+  # ── 4. CD: DEPLOY BACKEND TO AWS LAMBDA ───────────────────────
+  cd-deploy-backend:
+    name: ⚡ CD: Deploy Backend (AWS Lambda)
+    runs-on: ubuntu-latest
+    environment: prod
+    needs: [ci-quality, ci-test-backend, ci-build]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify AWS secrets present
+        run: |
+          ERR=0
+          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then echo "::error::Secret 'AWS_ACCESS_KEY_ID' is missing."; ERR=1; fi
+          if [ -z "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]; then echo "::error::Secret 'AWS_SECRET_ACCESS_KEY' is missing."; ERR=1; fi
+          if [ $ERR -eq 1 ]; then exit 1; fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image metadata
+        id: meta
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          IMAGE_URI="${ECR_REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-${SHORT_SHA}"
+          echo "image-uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+          echo "short-sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Create ECR repository (if not exists)
+        run: |
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }} \
+            || aws ecr create-repository \
+                --repository-name ${{ env.ECR_REPOSITORY }} \
+                --region ${{ env.AWS_REGION }} \
+                --image-scanning-configuration scanOnPush=true
+
+      - name: Build Docker Lambda Image
+        run: |
+          docker build \
+            --platform linux/amd64 \
+            -f apps/backend/Dockerfile.lambda \
+            -t ${{ steps.meta.outputs.image-uri }} \
+            .
+
+      - name: Push image to ECR
+        run: |
+          docker push ${{ steps.meta.outputs.image-uri }}
+          REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          docker tag ${{ steps.meta.outputs.image-uri }} \
+            "${REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-latest"
+          docker push "${REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-latest"
+
+      - name: Install Serverless Framework v3
+        run: npm install -g serverless@3
+
+      - name: Deploy via Serverless Framework
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          ECR_IMAGE_URI: ${{ steps.meta.outputs.image-uri }}
+        run: |
+          cd apps/backend
+          serverless deploy \
+            --stage ${{ env.STAGE }} \
+            --region ${{ env.AWS_REGION }} \
+            --verbose
+
+      - name: Setup pnpm for Migration
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install Monorepo Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Production DB Migrations
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd apps/backend
+          npx prisma migrate deploy
+
+  # ── 5. CD: DEPLOY FRONTEND TO CLOUDFLARE PAGES ───────────────
+  cd-deploy-frontend:
+    name: 🌐 CD: Deploy Frontend (Cloudflare Pages)
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [ci-quality, ci-build]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Next.js Frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: pnpm --filter @repo/frontend build
+
+      - name: Deploy to Cloudflare Pages via Wrangler
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cd apps/frontend
+          npx wrangler pages deploy .next \
+            --project-name=ai-interview-assistant \
+            --branch=production \
+            --commit-message="Deploy ${{ github.sha }}"
