@@ -1,11 +1,6 @@
 # ─────────────────────────────────────────────────────────────
 # Dockerfile.lambda — Build NestJS as AWS Lambda Container Image
 # Deploy via: aws ecr push → Lambda Container Function
-#
-# Usage:
-#   docker build -f apps/backend/Dockerfile.lambda -t ai-interview-backend-lambda .
-#   docker tag ai-interview-backend-lambda:latest <account>.dkr.ecr.<region>.amazonaws.com/<repo>:latest
-#   docker push <account>.dkr.ecr.<region>.amazonaws.com/<repo>:latest
 # ─────────────────────────────────────────────────────────────
 
 # ── Stage 1: Dependencies ─────────────────────────────────────
@@ -20,7 +15,8 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/tsconfig/package.json ./packages/tsconfig/
 COPY packages/eslint-config/package.json ./packages/eslint-config/
 
-RUN pnpm install --frozen-lockfile --filter @repo/backend...
+# Use --ignore-scripts to prevent postinstall hooks from failing when build context is minimal
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter @repo/backend...
 
 # ── Stage 2: Build ────────────────────────────────────────────
 FROM node:20-alpine AS builder
