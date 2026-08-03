@@ -25,6 +25,7 @@ env:
 jobs:
   deploy-backend:
     name: Build & Deploy Backend Lambda
+    environment: prod
     runs-on: ubuntu-latest
     permissions:
       id-token: write

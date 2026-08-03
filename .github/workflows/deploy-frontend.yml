@@ -12,6 +12,7 @@ on:
 jobs:
   deploy-frontend:
     name: Build & Deploy Frontend (Cloudflare Pages)
+    environment: production
     runs-on: ubuntu-latest
     permissions:
       contents: read
