@@ -1,4 +1,4 @@
-name: 🚀 CI/CD Pipeline
+name: "🚀 CI/CD Pipeline"
 
 on:
   push:
@@ -19,16 +19,16 @@ env:
 jobs:
   # ── 0. DETECT CHANGED PACKAGES (MONOREPO PATH FILTERING) ────
   changes:
-    name: 🎯 Detect Changed Packages
+    name: "🎯 Detect Changed Packages"
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
-      - name: Checkout code
+      - name: "Checkout code"
         uses: actions/checkout@v4
 
-      - name: Filter modified paths
+      - name: "Filter modified paths"
         uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -49,38 +49,38 @@ jobs:
 
   # ── 1. CI: LINT & TYPECHECK ───────────────────────────────────
   ci-quality:
-    name: 🔍 CI: Lint & Typecheck
+    name: "🔍 CI - Lint & Typecheck"
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: "Checkout code"
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
+      - name: "Setup pnpm"
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
 
-      - name: Setup Node.js
+      - name: "Setup Node.js"
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-      - name: Install dependencies
+      - name: "Install dependencies"
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
+      - name: "Generate Prisma Client"
         run: pnpm --filter @repo/backend prisma:generate
 
-      - name: Run Lint
+      - name: "Run Lint"
         run: pnpm lint
 
-      - name: Run Typecheck
+      - name: "Run Typecheck"
         run: pnpm typecheck
 
   # ── 2. CI: BACKEND TESTS ──────────────────────────────────────
   ci-test-backend:
-    name: 🧪 CI: Backend Tests
+    name: "🧪 CI - Backend Tests"
     runs-on: ubuntu-latest
     needs: [changes, ci-quality]
     if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
@@ -110,32 +110,32 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout code
+      - name: "Checkout code"
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
+      - name: "Setup pnpm"
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
 
-      - name: Setup Node.js
+      - name: "Setup Node.js"
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-      - name: Install dependencies
+      - name: "Install dependencies"
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
+      - name: "Generate Prisma Client"
         run: pnpm --filter @repo/backend prisma:generate
 
-      - name: Run DB Migrations for Test
+      - name: "Run DB Migrations for Test"
         run: pnpm --filter @repo/backend prisma migrate deploy
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ai_interview_test
 
-      - name: Run Unit & Integration Tests
+      - name: "Run Unit & Integration Tests"
         run: pnpm --filter @repo/backend test:cov
         env:
           NODE_ENV: test
@@ -146,33 +146,33 @@ jobs:
 
   # ── 3. CI: MONOREPO BUILD CHECK ───────────────────────────────
   ci-build:
-    name: 📦 CI: Monorepo Build Check
+    name: "📦 CI - Monorepo Build Check"
     runs-on: ubuntu-latest
     needs: ci-quality
     steps:
-      - name: Checkout code
+      - name: "Checkout code"
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
+      - name: "Setup pnpm"
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
 
-      - name: Setup Node.js
+      - name: "Setup Node.js"
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-      - name: Install dependencies
+      - name: "Install dependencies"
         run: pnpm install --frozen-lockfile
 
-      - name: Build All Workspaces
+      - name: "Build All Workspaces"
         run: pnpm build
 
   # ── 4. CD: DEPLOY BACKEND TO AWS LAMBDA ───────────────────────
   cd-deploy-backend:
-    name: ⚡ CD: Deploy Backend (AWS Lambda)
+    name: "⚡ CD - Deploy Backend (AWS Lambda)"
     runs-on: ubuntu-latest
     environment: prod
     needs: [changes, ci-quality, ci-build]
@@ -182,10 +182,10 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout code
+      - name: "Checkout code"
         uses: actions/checkout@v4
 
-      - name: Verify Backend Secrets Present
+      - name: "Verify Backend Secrets Present"
         run: |
           ERR=0
           if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then echo "::error::Secret 'AWS_ACCESS_KEY_ID' is missing."; ERR=1; fi
@@ -197,18 +197,18 @@ jobs:
           if [ -z "${{ secrets.GEMINI_API_KEY }}" ]; then echo "::error::Secret 'GEMINI_API_KEY' is missing."; ERR=1; fi
           if [ $ERR -eq 1 ]; then exit 1; fi
 
-      - name: Configure AWS credentials
+      - name: "Configure AWS credentials"
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: "Login to Amazon ECR"
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set image metadata
+      - name: "Set image metadata"
         id: meta
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
@@ -217,7 +217,7 @@ jobs:
           echo "image-uri=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
           echo "short-sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
-      - name: Create ECR repository (if not exists)
+      - name: "Create ECR repository (if not exists)"
         run: |
           aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} --region ${{ env.AWS_REGION }} \
             || aws ecr create-repository \
@@ -225,7 +225,7 @@ jobs:
                 --region ${{ env.AWS_REGION }} \
                 --image-scanning-configuration scanOnPush=true
 
-      - name: Build Docker Lambda Image
+      - name: "Build Docker Lambda Image"
         run: |
           docker build \
             --platform linux/amd64 \
@@ -233,7 +233,7 @@ jobs:
             -t ${{ steps.meta.outputs.image-uri }} \
             .
 
-      - name: Push image to ECR
+      - name: "Push image to ECR"
         run: |
           docker push ${{ steps.meta.outputs.image-uri }}
           REGISTRY=${{ steps.login-ecr.outputs.registry }}
@@ -241,10 +241,10 @@ jobs:
             "${REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-latest"
           docker push "${REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-latest"
 
-      - name: Install Serverless Framework v3
+      - name: "Install Serverless Framework v3"
         run: npm install -g serverless@3
 
-      - name: Deploy via Serverless Framework
+      - name: "Deploy via Serverless Framework"
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
@@ -260,21 +260,21 @@ jobs:
             --region ${{ env.AWS_REGION }} \
             --verbose
 
-      - name: Setup pnpm for Migration
+      - name: "Setup pnpm for Migration"
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
 
-      - name: Setup Node.js
+      - name: "Setup Node.js"
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-      - name: Install Monorepo Dependencies
+      - name: "Install Monorepo Dependencies"
         run: pnpm install --frozen-lockfile
 
-      - name: Run Production DB Migrations
+      - name: "Run Production DB Migrations"
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -284,7 +284,7 @@ jobs:
 
   # ── 5. CD: DEPLOY FRONTEND TO CLOUDFLARE PAGES ───────────────
   cd-deploy-frontend:
-    name: 🌐 CD: Deploy Frontend (Cloudflare Pages)
+    name: "🌐 CD - Deploy Frontend (Cloudflare Pages)"
     runs-on: ubuntu-latest
     environment: production
     needs: [changes, ci-quality, ci-build]
@@ -293,36 +293,36 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout code
+      - name: "Checkout code"
         uses: actions/checkout@v4
 
-      - name: Verify Frontend Secrets Present
+      - name: "Verify Frontend Secrets Present"
         run: |
           ERR=0
           if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then echo "::error::Secret 'CLOUDFLARE_API_TOKEN' is missing."; ERR=1; fi
           if [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then echo "::error::Secret 'CLOUDFLARE_ACCOUNT_ID' is missing."; ERR=1; fi
           if [ $ERR -eq 1 ]; then exit 1; fi
 
-      - name: Setup pnpm
+      - name: "Setup pnpm"
         uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
 
-      - name: Setup Node.js
+      - name: "Setup Node.js"
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
 
-      - name: Install dependencies
+      - name: "Install dependencies"
         run: pnpm install --frozen-lockfile
 
-      - name: Build Next.js Frontend
+      - name: "Build Next.js Frontend"
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         run: pnpm --filter @repo/frontend build
 
-      - name: Deploy to Cloudflare Pages via Wrangler
+      - name: "Deploy to Cloudflare Pages via Wrangler"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
