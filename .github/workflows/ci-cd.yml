@@ -176,7 +176,6 @@ jobs:
   cd-deploy-backend:
     name: "⚡ CD - Deploy Backend (AWS Lambda)"
     runs-on: ubuntu-latest
-    environment: prod
     needs: [changes, ci-quality, ci-build]
     if: |
       always() &&
@@ -295,7 +294,6 @@ jobs:
   cd-deploy-frontend:
     name: "🌐 CD - Deploy Frontend (Cloudflare Pages)"
     runs-on: ubuntu-latest
-    environment: production
     needs: [changes, ci-quality, ci-build]
     if: |
       always() &&
