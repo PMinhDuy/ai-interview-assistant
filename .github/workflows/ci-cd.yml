@@ -40,12 +40,14 @@ jobs:
               - 'deploy/deploy-backend.sh'
               - 'deploy/migrate-prod.sh'
               - 'pnpm-lock.yaml'
+              - '.github/workflows/**'
             frontend:
               - 'apps/frontend/**'
               - 'packages/types/**'
               - 'packages/tsconfig/**'
               - 'deploy/deploy-frontend.sh'
               - 'pnpm-lock.yaml'
+              - '.github/workflows/**'
 
   # ── 1. CI: LINT & TYPECHECK ───────────────────────────────────
   ci-quality:
@@ -83,7 +85,7 @@ jobs:
     name: "🧪 CI - Backend Tests"
     runs-on: ubuntu-latest
     needs: [changes, ci-quality]
-    if: needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
+    if: always() && needs.changes.outputs.backend == 'true' && !contains(needs.ci-quality.result, 'failure')
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -176,7 +178,14 @@ jobs:
     runs-on: ubuntu-latest
     environment: prod
     needs: [changes, ci-quality, ci-build]
-    if: github.ref == 'refs/heads/main' && (needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch')
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      !contains(needs.ci-quality.result, 'failure') &&
+      !contains(needs.ci-build.result, 'failure') &&
+      !contains(needs.ci-quality.result, 'cancelled') &&
+      !contains(needs.ci-build.result, 'cancelled') &&
+      (needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch')
     permissions:
       id-token: write
       contents: read
@@ -288,7 +297,14 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     needs: [changes, ci-quality, ci-build]
-    if: github.ref == 'refs/heads/main' && (needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch')
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      !contains(needs.ci-quality.result, 'failure') &&
+      !contains(needs.ci-build.result, 'failure') &&
+      !contains(needs.ci-quality.result, 'cancelled') &&
+      !contains(needs.ci-build.result, 'cancelled') &&
+      (needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
 
