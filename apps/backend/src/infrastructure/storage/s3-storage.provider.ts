@@ -40,6 +40,7 @@ export class S3StorageProvider extends StorageProvider {
   constructor(private readonly config: ConfigService) {
     super();
     this.bucket =
+      config.get<string>('S3_BUCKET_NAME') ??
       config.get<string>('AWS_S3_BUCKET') ??
       config.get<string>('MINIO_BUCKET', 'ai-interview-uploads');
     this.region = config.get<string>('AWS_REGION', 'us-east-1');
