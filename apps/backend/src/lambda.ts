@@ -71,12 +71,15 @@ export const handler: Handler = async (
   context: Context,
   callback: Callback,
 ) => {
-  // Warm start: skip Lambda-internal timeout on unresolved event loop items
   context.callbackWaitsForEmptyEventLoop = false;
 
-  if (!cachedServer) {
-    cachedServer = await bootstrapServer();
+  try {
+    if (!cachedServer) {
+      cachedServer = await bootstrapServer();
+    }
+    return await cachedServer(event, context, callback);
+  } catch (err) {
+    console.error('💥 Fatal error during Lambda initialization/execution:', err);
+    throw err;
   }
-
-  return cachedServer(event, context, callback);
 };
