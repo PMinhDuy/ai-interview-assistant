@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { RedisService } from '../../infrastructure/cache/redis.service';
 import { LoggerService } from '../../infrastructure/logger/logger.service';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import type {
   AuthResponse,

@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
