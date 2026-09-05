@@ -52,7 +52,7 @@ echo ""
 echo "🏗️  [3/5] Building Docker image (Lambda container)..."
 # Run from monorepo root so COPY commands work with the workspace structure
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MONOREPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+MONOREPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 docker build \
   --platform linux/amd64 \
