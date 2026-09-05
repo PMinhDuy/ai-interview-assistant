@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import serverlessExpress from '@vendia/serverless-express';
@@ -23,7 +24,18 @@ async function bootstrapServer(): Promise<Handler> {
   app.useLogger(logger);
 
   // ── Security ─────────────────────────────────────────────
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: [`'self'`],
+          styleSrc: [`'self'`, `'unsafe-inline'`, 'https:'],
+          imgSrc: [`'self'`, 'data:', 'https:'],
+          scriptSrc: [`'self'`, `'unsafe-inline'`, 'https:'],
+        },
+      },
+    }),
+  );
 
   const corsOrigins = config.get<string>('CORS_ORIGINS', 'https://ai-interview-assistant.pages.dev');
   app.enableCors({
@@ -58,6 +70,55 @@ async function bootstrapServer(): Promise<Handler> {
     new LoggingInterceptor(logger),
     new TransformInterceptor(),
   );
+
+  // ── Swagger / OpenAPI Documentation ───────────────────────
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('AI Interview Assistant API')
+    .setDescription(
+      `
+## Overview
+Production-ready AI Interview Assistant backend API deployed on AWS Lambda.
+
+## Authentication
+Uses JWT Bearer tokens. Get a token via \`POST /api/v1/auth/login\`.
+      `,
+    )
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'Authorization',
+        in: 'header',
+      },
+      'JWT',
+    )
+    .addTag('auth', 'Authentication & authorization')
+    .addTag('users', 'User profile management')
+    .addTag('resumes', 'Resume upload & analysis')
+    .addTag('job-descriptions', 'Job description management')
+    .addTag('interviews', 'Interview session management')
+    .addTag('evaluations', 'Answer evaluation & feedback')
+    .addTag('chat', 'AI chat & streaming')
+    .addTag('prompts', 'Prompt management & versioning')
+    .addTag('rag', 'Custom RAG knowledge base')
+    .addTag('health', 'Health checks')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document, {
+    customCssUrl:
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/swagger-ui.min.css',
+    customJs: [
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/swagger-ui-bundle.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/swagger-ui-standalone-preset.js',
+    ],
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'list',
+    },
+  });
 
   await app.init();
 
