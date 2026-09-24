@@ -3,10 +3,6 @@ pages_build_output_dir = ".next"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Build configuration
-[build]
-command = "pnpm --filter @repo/frontend build"
-cwd = "../.."
 
 # Production environment
 [env.production.vars]
