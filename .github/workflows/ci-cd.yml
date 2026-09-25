@@ -310,14 +310,8 @@ jobs:
     name: "🌐 CD - Deploy Frontend (Cloudflare Pages)"
     runs-on: ubuntu-latest
     needs: [changes, ci-quality, ci-build]
-    if: |
-      always() &&
-      github.ref == 'refs/heads/main' &&
-      !contains(needs.ci-quality.result, 'failure') &&
-      !contains(needs.ci-build.result, 'failure') &&
-      !contains(needs.ci-quality.result, 'cancelled') &&
-      !contains(needs.ci-build.result, 'cancelled') &&
-      (needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch')
+    # Disabled: Frontend deployment is now managed automatically by Cloudflare Pages Git Integration
+    if: false
     permissions:
       contents: read
 
