@@ -11,6 +11,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
   AWS_REGION: ap-southeast-1
   ECR_REPOSITORY: ai-interview-backend
@@ -70,6 +74,14 @@ jobs:
 
       - name: "Install dependencies"
         run: pnpm install --frozen-lockfile
+
+      - name: "Cache Turborepo build artifacts"
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
 
       - name: "Generate Prisma Client"
         run: pnpm --filter @repo/backend prisma:generate
@@ -169,6 +181,14 @@ jobs:
       - name: "Install dependencies"
         run: pnpm install --frozen-lockfile
 
+      - name: "Cache Turborepo build artifacts"
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
       - name: "Build All Workspaces"
         run: pnpm build
 
@@ -196,6 +216,7 @@ jobs:
       - name: "Verify Backend Secrets/Variables Present"
         run: |
           ERR=0
+          VAL_ROLE="${{ secrets.AWS_DEPLOY_ROLE_ARN || vars.AWS_DEPLOY_ROLE_ARN }}"
           VAL_AWS_KEY="${{ secrets.AWS_ACCESS_KEY_ID || vars.AWS_ACCESS_KEY_ID }}"
           VAL_AWS_SECRET="${{ secrets.AWS_SECRET_ACCESS_KEY || vars.AWS_SECRET_ACCESS_KEY }}"
           VAL_DB="${{ secrets.DATABASE_URL || vars.DATABASE_URL }}"
@@ -204,8 +225,9 @@ jobs:
           VAL_REFRESH="${{ secrets.JWT_REFRESH_SECRET || vars.JWT_REFRESH_SECRET }}"
           VAL_GEMINI="${{ secrets.GEMINI_API_KEY || vars.GEMINI_API_KEY }}"
 
-          if [ -z "$VAL_AWS_KEY" ]; then echo "::error::Secret/Var 'AWS_ACCESS_KEY_ID' is missing."; ERR=1; fi
-          if [ -z "$VAL_AWS_SECRET" ]; then echo "::error::Secret/Var 'AWS_SECRET_ACCESS_KEY' is missing."; ERR=1; fi
+          if [ -z "$VAL_ROLE" ] && ([ -z "$VAL_AWS_KEY" ] || [ -z "$VAL_AWS_SECRET" ]); then
+            echo "::error::Neither 'AWS_DEPLOY_ROLE_ARN' nor static AWS keys ('AWS_ACCESS_KEY_ID' & 'AWS_SECRET_ACCESS_KEY') are provided."; ERR=1;
+          fi
           if [ -z "$VAL_DB" ]; then echo "::error::Secret/Var 'DATABASE_URL' is missing."; ERR=1; fi
           if [ -z "$VAL_DIRECT" ]; then echo "::error::Secret/Var 'DIRECT_URL' is missing."; ERR=1; fi
           if [ -z "$VAL_JWT" ]; then echo "::error::Secret/Var 'JWT_SECRET' is missing."; ERR=1; fi
@@ -220,7 +242,18 @@ jobs:
             exit 1
           fi
 
-      - name: "Configure AWS credentials"
+      - name: "Configure AWS credentials via OIDC"
+        if: "${{ (secrets.AWS_DEPLOY_ROLE_ARN != '' || vars.AWS_DEPLOY_ROLE_ARN != '') }}"
+        id: aws-oidc
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN || vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-DeployBackend-${{ github.run_id }}
+
+      - name: "Configure AWS credentials via Access Keys (Fallback)"
+        if: "${{ steps.aws-oidc.outcome != 'success' }}"
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID || vars.AWS_ACCESS_KEY_ID }}
@@ -264,6 +297,30 @@ jobs:
             "${REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-latest"
           docker push "${REGISTRY}/${{ env.ECR_REPOSITORY }}:${{ env.STAGE }}-latest"
 
+      # ── PRE-DEPLOY DATABASE MIGRATIONS (Zero-Downtime Guarantee) ───
+      - name: "Setup pnpm for Migration"
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: "Setup Node.js for Migration"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: "Install Monorepo Dependencies for Migration"
+        run: pnpm install --frozen-lockfile
+
+      - name: "Run Production DB Migrations (Pre-Deployment)"
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL || vars.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL }}
+        run: |
+          cd apps/backend
+          npx prisma migrate deploy
+
+      # ── SERVERLESS LAMBDA DEPLOYMENT (Safe Traffic Swap) ───────────
       - name: "Install Serverless Framework v3"
         run: npm install -g serverless@3
 
@@ -282,78 +339,3 @@ jobs:
             --stage ${{ env.STAGE }} \
             --region ${{ env.AWS_REGION }} \
             --verbose
-
-      - name: "Setup pnpm for Migration"
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.0
-
-      - name: "Setup Node.js"
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: "Install Monorepo Dependencies"
-        run: pnpm install --frozen-lockfile
-
-      - name: "Run Production DB Migrations"
-        env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL || vars.DIRECT_URL }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL || vars.DATABASE_URL }}
-        run: |
-          cd apps/backend
-          npx prisma migrate deploy
-
-  # ── 5. CD: DEPLOY FRONTEND TO CLOUDFLARE PAGES ───────────────
-  cd-deploy-frontend:
-    name: "🌐 CD - Deploy Frontend (Cloudflare Pages)"
-    runs-on: ubuntu-latest
-    needs: [changes, ci-quality, ci-build]
-    # Disabled: Frontend deployment is now managed automatically by Cloudflare Pages Git Integration
-    if: false
-    permissions:
-      contents: read
-
-    steps:
-      - name: "Checkout code"
-        uses: actions/checkout@v4
-
-      - name: "Verify Frontend Secrets/Variables Present"
-        run: |
-          ERR=0
-          VAL_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}"
-          VAL_ACC="${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}"
-          if [ -z "$VAL_TOKEN" ]; then echo "::error::Secret/Var 'CLOUDFLARE_API_TOKEN' is missing."; ERR=1; fi
-          if [ -z "$VAL_ACC" ]; then echo "::error::Secret/Var 'CLOUDFLARE_ACCOUNT_ID' is missing."; ERR=1; fi
-          if [ $ERR -eq 1 ]; then exit 1; fi
-
-      - name: "Setup pnpm"
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.0
-
-      - name: "Setup Node.js"
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: "Install dependencies"
-        run: pnpm install --frozen-lockfile
-
-      - name: "Build Next.js Frontend"
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || vars.NEXT_PUBLIC_API_URL }}
-        run: pnpm --filter @repo/frontend build
-
-      - name: "Deploy to Cloudflare Pages via Wrangler"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          cd apps/frontend
-          npx wrangler pages deploy .next \
-            --project-name=ai-interview-assistant \
-            --branch=production \
-            --commit-message="Deploy ${{ github.sha }}"
