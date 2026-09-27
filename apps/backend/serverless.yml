@@ -10,9 +10,10 @@ provider:
     cors:
       allowedOrigins:
         - 'https://ai-interview-assistant.pages.dev'
-        - 'https://*.ai-interview-assistant.pages.dev'
-        - 'https://*.pages.dev'
+        - 'https://production.ai-interview-assistant.pages.dev'
+        - 'https://main.ai-interview-assistant.pages.dev'
         - 'http://localhost:3000'
+        - 'http://localhost:3001'
       allowedHeaders:
         - Content-Type
         - Authorization
