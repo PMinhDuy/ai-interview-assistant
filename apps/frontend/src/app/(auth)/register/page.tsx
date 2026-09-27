@@ -5,9 +5,18 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Form, Input, Button, Alert, Typography, Row, Col } from 'antd';
 import { MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
+import axios from 'axios';
 import { useAuthStore } from '../../../store/useAuthStore';
 
 const { Text } = Typography;
+
+interface ApiErrorResponse {
+  message?: string | string[];
+}
+
+function isApiErrorResponse(data: unknown): data is ApiErrorResponse {
+  return typeof data === 'object' && data !== null && 'message' in data;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -16,7 +25,12 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const onFinish = async (values: { email: string; password?: string; firstName?: string; lastName?: string }) => {
+  const onFinish = async (values: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  }) => {
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -28,7 +42,19 @@ export default function RegisterPage() {
       });
       router.push('/dashboard');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Registration failed. Email may already be in use.';
+      let msg = 'Registration failed. Email may already be in use.';
+      if (axios.isAxiosError(err)) {
+        const responseData = err.response?.data;
+        if (isApiErrorResponse(responseData)) {
+          if (typeof responseData.message === 'string') {
+            msg = responseData.message;
+          } else if (Array.isArray(responseData.message)) {
+            msg = responseData.message.join(', ');
+          }
+        }
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
       setErrorMessage(msg);
     } finally {
       setLoading(false);
@@ -51,12 +77,26 @@ export default function RegisterPage() {
       <Form name="register_form" layout="vertical" onFinish={onFinish} requiredMark={false} size="large">
         <Row gutter={12}>
           <Col span={12}>
-            <Form.Item name="firstName" label="First Name">
+            <Form.Item
+              name="firstName"
+              label="First Name"
+              rules={[
+                { required: true, message: 'Please enter your first name' },
+                { max: 50, message: 'First name must not exceed 50 characters' },
+              ]}
+            >
               <Input prefix={<UserOutlined style={{ color: '#bfbfbf' }} />} placeholder="John" />
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="lastName" label="Last Name">
+            <Form.Item
+              name="lastName"
+              label="Last Name"
+              rules={[
+                { required: true, message: 'Please enter your last name' },
+                { max: 50, message: 'Last name must not exceed 50 characters' },
+              ]}
+            >
               <Input prefix={<UserOutlined style={{ color: '#bfbfbf' }} />} placeholder="Doe" />
             </Form.Item>
           </Col>
@@ -78,10 +118,11 @@ export default function RegisterPage() {
           label="Password"
           rules={[
             { required: true, message: 'Please enter a password' },
-            { min: 6, message: 'Password must be at least 6 characters' },
+            { min: 8, message: 'Password must be at least 8 characters' },
+            { max: 128, message: 'Password must not exceed 128 characters' },
           ]}
         >
-          <Input.Password prefix={<LockOutlined style={{ color: '#bfbfbf' }} />} placeholder="At least 6 characters" />
+          <Input.Password prefix={<LockOutlined style={{ color: '#bfbfbf' }} />} placeholder="At least 8 characters" />
         </Form.Item>
 
         <Form.Item style={{ marginTop: 24, marginBottom: 16 }}>

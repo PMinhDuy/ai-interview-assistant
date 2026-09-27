@@ -22,11 +22,40 @@ async function bootstrap() {
   // ── Security ─────────────────────────────────────────────
   app.use(helmet());
 
-  const corsOrigins = config.get<string>('CORS_ORIGINS', 'http://localhost:3000');
+  const configuredOrigins = config
+    .get<string>('CORS_ORIGINS', 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  const isAllowedOrigin = (origin: string): boolean => {
+    if (configuredOrigins.includes(origin)) {
+      return true;
+    }
+    return (
+      /^https:\/\/([a-z0-9-_]+\.)?ai-interview-assistant\.pages\.dev$/.test(origin) ||
+      /^https:\/\/[a-z0-9-_]+\.pages\.dev$/.test(origin) ||
+      /^http:\/\/localhost:\d+$/.test(origin)
+    );
+  };
+
   app.enableCors({
-    origin: corsOrigins.split(',').map((o) => o.trim()),
+    origin: (requestOrigin, callback) => {
+      if (!requestOrigin || isAllowedOrigin(requestOrigin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Correlation-Id',
+      'Accept',
+      'Origin',
+      'X-Requested-With',
+    ],
     credentials: true,
   });
 

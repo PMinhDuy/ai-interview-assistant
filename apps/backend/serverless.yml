@@ -6,6 +6,29 @@ provider:
   runtime: nodejs20.x
   stage: ${opt:stage, 'prod'}
   region: ${opt:region, 'ap-southeast-1'}
+  httpApi:
+    cors:
+      allowedOrigins:
+        - 'https://ai-interview-assistant.pages.dev'
+        - 'https://*.ai-interview-assistant.pages.dev'
+        - 'https://*.pages.dev'
+        - 'http://localhost:3000'
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+        - X-Correlation-Id
+        - Accept
+        - Origin
+        - X-Requested-With
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allowCredentials: true
+      maxAge: 3600
   
   # IAM permissions for Lambda function
   iam:
