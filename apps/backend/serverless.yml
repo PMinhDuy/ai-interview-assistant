@@ -9,6 +9,9 @@ provider:
   httpApi:
     cors:
       allowedOrigins:
+        - 'https://ai-interview-assistant-4e6.pages.dev'
+        - 'https://production.ai-interview-assistant-4e6.pages.dev'
+        - 'https://main.ai-interview-assistant-4e6.pages.dev'
         - 'https://ai-interview-assistant.pages.dev'
         - 'https://production.ai-interview-assistant.pages.dev'
         - 'https://main.ai-interview-assistant.pages.dev'
@@ -67,7 +70,7 @@ provider:
     GEMINI_API_KEY: ${env:GEMINI_API_KEY}
     STORAGE_PROVIDER: s3
     S3_BUCKET_NAME: ${self:custom.s3BucketName}
-    CORS_ORIGINS: ${env:CORS_ORIGINS, 'https://ai-interview-assistant.pages.dev'}
+    CORS_ORIGINS: ${env:CORS_ORIGINS, 'https://ai-interview-assistant-4e6.pages.dev,https://ai-interview-assistant.pages.dev'}
 
 custom:
   s3BucketName: ai-interview-assistant-uploads-${self:provider.stage}
@@ -103,6 +106,7 @@ resources:
                 - DELETE
                 - HEAD
               AllowedOrigins:
+                - "https://ai-interview-assistant-4e6.pages.dev"
                 - "https://ai-interview-assistant.pages.dev"
                 - "http://localhost:3001"
               AllowedHeaders:

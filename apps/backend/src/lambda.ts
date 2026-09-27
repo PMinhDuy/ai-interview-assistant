@@ -38,19 +38,25 @@ async function bootstrapServer(): Promise<Handler> {
   );
 
   const configuredOrigins = config
-    .get<string>('CORS_ORIGINS', 'https://ai-interview-assistant.pages.dev')
+    .get<string>(
+      'CORS_ORIGINS',
+      'https://ai-interview-assistant-4e6.pages.dev,https://ai-interview-assistant.pages.dev',
+    )
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter(Boolean);
 
   const isAllowedOrigin = (origin: string): boolean => {
-    if (configuredOrigins.includes(origin)) {
+    const normalizedOrigin = origin.trim().replace(/\/+$/, '');
+    if (configuredOrigins.includes(normalizedOrigin)) {
       return true;
     }
     return (
-      /^https:\/\/([a-z0-9-_]+\.)?ai-interview-assistant\.pages\.dev$/.test(origin) ||
-      /^https:\/\/[a-z0-9-_]+\.pages\.dev$/.test(origin) ||
-      /^http:\/\/localhost:\d+$/.test(origin)
+      /^https:\/\/([a-z0-9-_]+\.)?ai-interview-assistant(-[a-z0-9-_]+)?\.pages\.dev$/.test(
+        normalizedOrigin,
+      ) ||
+      /^https:\/\/[a-z0-9-_]+\.pages\.dev$/.test(normalizedOrigin) ||
+      /^http:\/\/localhost:\d+$/.test(normalizedOrigin)
     );
   };
 

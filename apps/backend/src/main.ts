@@ -23,19 +23,25 @@ async function bootstrap() {
   app.use(helmet());
 
   const configuredOrigins = config
-    .get<string>('CORS_ORIGINS', 'http://localhost:3000')
+    .get<string>(
+      'CORS_ORIGINS',
+      'http://localhost:3000,https://ai-interview-assistant-4e6.pages.dev',
+    )
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter(Boolean);
 
   const isAllowedOrigin = (origin: string): boolean => {
-    if (configuredOrigins.includes(origin)) {
+    const normalizedOrigin = origin.trim().replace(/\/+$/, '');
+    if (configuredOrigins.includes(normalizedOrigin)) {
       return true;
     }
     return (
-      /^https:\/\/([a-z0-9-_]+\.)?ai-interview-assistant\.pages\.dev$/.test(origin) ||
-      /^https:\/\/[a-z0-9-_]+\.pages\.dev$/.test(origin) ||
-      /^http:\/\/localhost:\d+$/.test(origin)
+      /^https:\/\/([a-z0-9-_]+\.)?ai-interview-assistant(-[a-z0-9-_]+)?\.pages\.dev$/.test(
+        normalizedOrigin,
+      ) ||
+      /^https:\/\/[a-z0-9-_]+\.pages\.dev$/.test(normalizedOrigin) ||
+      /^http:\/\/localhost:\d+$/.test(normalizedOrigin)
     );
   };
 
