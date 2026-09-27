@@ -1,0 +1,3 @@
+# Cloudflare Pages SPA rewrite rules for dynamic routes
+/interviews/:id/report    /interviews/session/report.html    200
+/interviews/:id           /interviews/session.html           200
