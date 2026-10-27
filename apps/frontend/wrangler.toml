@@ -7,8 +7,9 @@ compatibility_flags = ["nodejs_compat"]
 # Production environment
 [env.production.vars]
 NODE_ENV = "production"
-# NEXT_PUBLIC_API_URL is set in Cloudflare Pages dashboard (not here — contains secret URL)
+NEXT_PUBLIC_API_URL = "https://1yk1q21nma.execute-api.ap-southeast-1.amazonaws.com/api/v1"
 
 # Preview environment (branch deployments)
 [env.preview.vars]
 NODE_ENV = "production"
+NEXT_PUBLIC_API_URL = "https://1yk1q21nma.execute-api.ap-southeast-1.amazonaws.com/api/v1"
