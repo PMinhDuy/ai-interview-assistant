@@ -1,5 +1,13 @@
 import { create } from 'zustand';
-import { authService, type User, type LoginDto, type RegisterDto } from '../services/auth.service';
+import {
+  loginUser,
+  registerUser,
+  getMe,
+  logoutUser,
+  type User,
+  type LoginDto,
+  type RegisterDto,
+} from '@/features/auth';
 
 interface AuthState {
   user: User | null;
@@ -21,7 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (dto) => {
     set({ isLoading: true });
     try {
-      const res = await authService.login(dto);
+      const res = await loginUser(dto);
       if (typeof window !== 'undefined') {
         localStorage.setItem('accessToken', res.tokens.accessToken);
         localStorage.setItem('refreshToken', res.tokens.refreshToken);
@@ -37,7 +45,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (dto) => {
     set({ isLoading: true });
     try {
-      const res = await authService.register(dto);
+      const res = await registerUser(dto);
       if (typeof window !== 'undefined') {
         localStorage.setItem('accessToken', res.tokens.accessToken);
         localStorage.setItem('refreshToken', res.tokens.refreshToken);
@@ -51,16 +59,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    set({ isLoading: true });
-    try {
-      await authService.logout();
-    } finally {
-      set({ user: null, isAuthenticated: false, isLoading: false });
-    }
+    await logoutUser();
+    set({ user: null, isAuthenticated: false, isLoading: false });
   },
 
   checkAuth: async () => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      set({ isInitialized: true });
+      return;
+    }
+
     const token = localStorage.getItem('accessToken');
     if (!token) {
       set({ user: null, isAuthenticated: false, isInitialized: true });
@@ -68,7 +76,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     try {
-      const user = await authService.getMe();
+      const user = await getMe();
       set({ user, isAuthenticated: true, isInitialized: true });
     } catch {
       localStorage.removeItem('accessToken');
