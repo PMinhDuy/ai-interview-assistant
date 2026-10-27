@@ -24,6 +24,35 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+interface ApiResponseEnvelope {
+  success: boolean;
+  data: unknown;
+  timestamp?: string;
+  message?: string;
+}
+
+function isApiResponseEnvelope(value: unknown): value is ApiResponseEnvelope {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'success' in value &&
+    'data' in value
+  );
+}
+
+interface TokenPayload {
+  accessToken?: string;
+  refreshToken?: string;
+  tokens?: {
+    accessToken?: string;
+    refreshToken?: string;
+  };
+}
+
+function isTokenPayload(value: unknown): value is TokenPayload {
+  return typeof value === 'object' && value !== null;
+}
+
 // Response interceptor: Handle 401 & token refresh
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
@@ -40,7 +69,13 @@ const processQueue = (error: unknown, token: string | null = null) => {
 };
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const responsePayload: unknown = response.data;
+    if (isApiResponseEnvelope(responsePayload)) {
+      return { ...response, data: responsePayload.data };
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
@@ -70,8 +105,18 @@ apiClient.interceptors.response.use(
         }
 
         const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-        const newAccessToken = data.tokens.accessToken;
-        const newRefreshToken = data.tokens.refreshToken;
+        const responseData: unknown = isApiResponseEnvelope(data) ? data.data : data;
+
+        if (!isTokenPayload(responseData)) {
+          throw new Error('Invalid token response shape');
+        }
+
+        const newAccessToken = responseData.tokens?.accessToken ?? responseData.accessToken;
+        const newRefreshToken = responseData.tokens?.refreshToken ?? responseData.refreshToken;
+
+        if (!newAccessToken || !newRefreshToken) {
+          throw new Error('Missing tokens in refresh response');
+        }
 
         if (typeof window !== 'undefined') {
           localStorage.setItem('accessToken', newAccessToken);
