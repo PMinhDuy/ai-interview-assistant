@@ -33,7 +33,7 @@ import {
   type InterviewType,
   type Difficulty,
 } from '../api';
-import { filesService } from '@/services/files.service';
+import { getResumesQueryOptions, getJobDescriptionsQueryOptions } from '@/features/files';
 import { extractApiErrorMessage } from '@/lib/error';
 
 const { Title, Text, Paragraph } = Typography;
@@ -96,16 +96,9 @@ export function InterviewCreateForm() {
   const [selectedResumeId, setSelectedResumeId] = useState<string | undefined>(undefined);
   const [selectedJdId, setSelectedJdId] = useState<string | undefined>(undefined);
 
-  // Fetch user's uploaded Resumes and JDs for Step 3
-  const { data: resumes = [] } = useQuery({
-    queryKey: ['resumes'],
-    queryFn: filesService.getResumes,
-  });
-
-  const { data: jds = [] } = useQuery({
-    queryKey: ['job-descriptions'],
-    queryFn: filesService.getJobDescriptions,
-  });
+  // Fetch user's uploaded Resumes and JDs for Step 3 via co-located queryOptions
+  const { data: resumes = [] } = useQuery(getResumesQueryOptions());
+  const { data: jds = [] } = useQuery(getJobDescriptionsQueryOptions());
 
   // Create Session Mutation using new feature hook
   const createSessionMutation = useCreateSessionMutation();
