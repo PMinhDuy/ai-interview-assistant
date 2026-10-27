@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   Card,
@@ -25,33 +25,29 @@ import {
   BookOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
-import { evaluationsService } from '../../../../../services/evaluations.service';
-import { interviewsService } from '../../../../../services/interviews.service';
+import {
+  getSessionReportQueryOptions,
+  getSessionQueryOptions,
+  getEvaluationsBySessionQueryOptions,
+} from '../api';
 
 const { Title, Text, Paragraph } = Typography;
 
-export default function SessionReportPage() {
-  const params = useParams();
-  const sessionId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? (params.id[0] ?? '') : '';
+export interface InterviewReportViewProps {
+  sessionId: string;
+}
+
+export function InterviewReportView({ sessionId }: InterviewReportViewProps) {
   const router = useRouter();
 
   // Fetch Report
-  const { data: report, isLoading: isLoadingReport } = useQuery({
-    queryKey: ['session-report', sessionId],
-    queryFn: () => evaluationsService.getSessionReport(sessionId),
-  });
+  const { data: report, isLoading: isLoadingReport } = useQuery(getSessionReportQueryOptions(sessionId));
 
   // Fetch Session details
-  const { data: session } = useQuery({
-    queryKey: ['session', sessionId],
-    queryFn: () => interviewsService.getSession(sessionId),
-  });
+  const { data: session } = useQuery(getSessionQueryOptions(sessionId));
 
   // Fetch Question Evaluations
-  const { data: evaluations = [] } = useQuery({
-    queryKey: ['session-evaluations', sessionId],
-    queryFn: () => evaluationsService.getEvaluationsBySession(sessionId),
-  });
+  const { data: evaluations = [] } = useQuery(getEvaluationsBySessionQueryOptions(sessionId));
 
   if (isLoadingReport) {
     return (

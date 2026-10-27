@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
   Card,
   Typography,
@@ -29,58 +29,63 @@ import {
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 import {
-  interviewsService,
+  getSessionQueryOptions,
+  getCurrentQuestionQueryOptions,
+  useSubmitAnswerMutation,
   type SubmitAnswerResponse,
-} from '../../../../services/interviews.service';
+} from '../api';
+import { extractApiErrorMessage } from '@/lib/error';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-export default function ActiveInterviewScreen() {
-  const params = useParams();
-  const sessionId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? (params.id[0] ?? '') : '';
+export interface InterviewSessionViewProps {
+  sessionId: string;
+}
+
+export function InterviewSessionView({ sessionId }: InterviewSessionViewProps) {
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   const [answerText, setAnswerText] = useState('');
   const [evaluationResult, setEvaluationResult] = useState<SubmitAnswerResponse | null>(null);
   const [isEvaluationDrawerOpen, setIsEvaluationDrawerOpen] = useState(false);
   const [isCompletedModalOpen, setIsCompletedModalOpen] = useState(false);
 
-  // Fetch Session data
-  const { data: session, isLoading: isLoadingSession } = useQuery({
-    queryKey: ['session', sessionId],
-    queryFn: () => interviewsService.getSession(sessionId),
-  });
+  // Fetch Session data via co-located queryOptions
+  const { data: session, isLoading: isLoadingSession } = useQuery(getSessionQueryOptions(sessionId));
 
-  // Fetch Current Question
-  const { data: currentQuestionData, isLoading: isLoadingQuestion, refetch: refetchQuestion } = useQuery({
-    queryKey: ['current-question', sessionId],
-    queryFn: () => interviewsService.getCurrentQuestion(sessionId),
-  });
+  // Fetch Current Question via co-located queryOptions
+  const {
+    data: currentQuestionData,
+    isLoading: isLoadingQuestion,
+    refetch: refetchQuestion,
+  } = useQuery(getCurrentQuestionQueryOptions(sessionId));
 
   // Submit Answer Mutation
-  const submitAnswerMutation = useMutation({
-    mutationFn: async () => {
-      const qId = currentQuestionData?.question?.id;
-      if (!qId || !answerText.trim()) return;
-      return interviewsService.submitAnswer(sessionId, qId, answerText.trim());
-    },
-    onSuccess: (res) => {
-      if (!res) return;
+  const submitAnswerMutation = useSubmitAnswerMutation(sessionId);
+
+  const handleSubmit = async () => {
+    const questionId = currentQuestionData?.question?.id;
+    if (!questionId || !answerText.trim()) return;
+
+    try {
+      const res = await submitAnswerMutation.mutateAsync({
+        sessionId,
+        questionId,
+        userAnswer: answerText.trim(),
+      });
+
       setEvaluationResult(res);
       setIsEvaluationDrawerOpen(true);
-      queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
 
       if (res.next?.completed) {
         setIsCompletedModalOpen(true);
       }
-    },
-    onError: (err: unknown) => {
-      const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message || 'Failed to submit answer';
-      message.error(msg);
-    },
-  });
+    } catch (error: unknown) {
+      const errorMsg = extractApiErrorMessage(error, 'Failed to submit answer');
+      message.error(errorMsg);
+    }
+  };
 
   const handleNextQuestion = () => {
     setIsEvaluationDrawerOpen(false);
@@ -185,7 +190,7 @@ export default function ActiveInterviewScreen() {
               icon={<SendOutlined />}
               loading={submitAnswerMutation.isPending}
               disabled={!answerText.trim()}
-              onClick={() => submitAnswerMutation.mutate()}
+              onClick={handleSubmit}
             >
               Submit Answer & Evaluate
             </Button>
@@ -217,7 +222,6 @@ export default function ActiveInterviewScreen() {
       >
         {evaluationResult?.evaluation && (
           <div>
-            {/* Overall Score Badge */}
             <Card style={{ background: '#f6ffed', borderColor: '#b7eb8f', textAlign: 'center', marginBottom: 20 }}>
               <TrophyOutlined style={{ fontSize: 36, color: '#52c41a', marginBottom: 8 }} />
               <Title level={2} style={{ margin: 0, color: '#52c41a' }}>
@@ -226,7 +230,6 @@ export default function ActiveInterviewScreen() {
               <Text type="secondary">Overall Performance Score</Text>
             </Card>
 
-            {/* Score Breakdown Bars */}
             <Title level={4}>Score Breakdown</Title>
             <Space direction="vertical" style={{ width: '100%', marginBottom: 24 }}>
               <div>
@@ -247,7 +250,6 @@ export default function ActiveInterviewScreen() {
               </div>
             </Space>
 
-            {/* Strengths */}
             <Title level={4}>Key Strengths</Title>
             <ul style={{ paddingLeft: 20, marginBottom: 20 }}>
               {evaluationResult.evaluation.strengths.map((str, idx) => (
@@ -258,7 +260,6 @@ export default function ActiveInterviewScreen() {
               ))}
             </ul>
 
-            {/* Areas to Improve */}
             <Title level={4}>Areas for Improvement</Title>
             <ul style={{ paddingLeft: 20, marginBottom: 20 }}>
               {evaluationResult.evaluation.improvements.map((imp, idx) => (
@@ -269,13 +270,11 @@ export default function ActiveInterviewScreen() {
               ))}
             </ul>
 
-            {/* Feedback */}
             <Title level={4}>Feedback & Analysis</Title>
             <Paragraph style={{ background: '#f5f7fa', padding: 12, borderRadius: 8 }}>
               {evaluationResult.evaluation.feedback}
             </Paragraph>
 
-            {/* Model Answer */}
             {evaluationResult.evaluation.suggestedAnswer && (
               <Collapse
                 style={{ marginBottom: 24 }}
@@ -293,7 +292,6 @@ export default function ActiveInterviewScreen() {
               />
             )}
 
-            {/* Action Buttons */}
             <div style={{ marginTop: 24, textAlign: 'right' }}>
               {evaluationResult.next?.completed ? (
                 <Button
