@@ -21,7 +21,7 @@ export function DashboardMetrics({ sessions }: DashboardMetricsProps) {
   return (
     <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
       <Col xs={24} sm={12} lg={6}>
-        <Card bordered={false}>
+        <Card variant="borderless">
           <Statistic
             title="Total Sessions"
             value={sessions.length}
@@ -30,7 +30,7 @@ export function DashboardMetrics({ sessions }: DashboardMetricsProps) {
         </Card>
       </Col>
       <Col xs={24} sm={12} lg={6}>
-        <Card bordered={false}>
+        <Card variant="borderless">
           <Statistic
             title="Completed Sessions"
             value={completedSessions.length}
@@ -39,7 +39,7 @@ export function DashboardMetrics({ sessions }: DashboardMetricsProps) {
         </Card>
       </Col>
       <Col xs={24} sm={12} lg={6}>
-        <Card bordered={false}>
+        <Card variant="borderless">
           <Statistic
             title="Active Sessions"
             value={activeSessions.length}
@@ -48,7 +48,7 @@ export function DashboardMetrics({ sessions }: DashboardMetricsProps) {
         </Card>
       </Col>
       <Col xs={24} sm={12} lg={6}>
-        <Card bordered={false}>
+        <Card variant="borderless">
           <Statistic
             title="Completion Rate"
             value={completionRate}

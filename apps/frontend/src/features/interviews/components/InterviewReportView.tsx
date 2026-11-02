@@ -51,15 +51,16 @@ export function InterviewReportView({ sessionId }: InterviewReportViewProps) {
 
   if (isLoadingReport) {
     return (
-      <div style={{ display: 'flex', minHeight: '60vh', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin size="large" tip="Generating Session Performance Report..." />
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '60vh', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <Spin size="large" />
+        <Text type="secondary">Generating Session Performance Report...</Text>
       </div>
     );
   }
 
   if (!report) {
     return (
-      <Card bordered={false}>
+      <Card variant="borderless">
         <Alert
           type="warning"
           message="Report Not Available"
@@ -96,7 +97,7 @@ export function InterviewReportView({ sessionId }: InterviewReportViewProps) {
       {/* Overview Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={8}>
-          <Card bordered={false} style={{ textAlign: 'center', height: '100%' }}>
+          <Card variant="borderless" style={{ textAlign: 'center', height: '100%' }}>
             <TrophyOutlined style={{ fontSize: 42, color: '#faad14', marginBottom: 12 }} />
             <Title level={1} style={{ margin: 0, color: '#1677ff' }}>
               {scores?.overall ?? 0}
@@ -115,7 +116,7 @@ export function InterviewReportView({ sessionId }: InterviewReportViewProps) {
         </Col>
 
         <Col xs={24} md={16}>
-          <Card title="5-Dimensional Performance Breakdown" bordered={false} style={{ height: '100%' }}>
+          <Card title="5-Dimensional Performance Breakdown" variant="borderless" style={{ height: '100%' }}>
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               <div>
                 <Text>Technical Correctness ({scores?.technical ?? 0}/100)</Text>
@@ -141,7 +142,7 @@ export function InterviewReportView({ sessionId }: InterviewReportViewProps) {
       {/* Strengths & Improvements */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} md={12}>
-          <Card title="Key Strengths" bordered={false} style={{ height: '100%' }}>
+          <Card title="Key Strengths" variant="borderless" style={{ height: '100%' }}>
             <ul style={{ paddingLeft: 20, margin: 0 }}>
               {report.strengths?.map((str, idx) => (
                 <li key={idx} style={{ marginBottom: 8, color: '#2b7135' }}>
@@ -154,7 +155,7 @@ export function InterviewReportView({ sessionId }: InterviewReportViewProps) {
         </Col>
 
         <Col xs={24} md={12}>
-          <Card title="Areas to Improve" bordered={false} style={{ height: '100%' }}>
+          <Card title="Areas to Improve" variant="borderless" style={{ height: '100%' }}>
             <ul style={{ paddingLeft: 20, margin: 0 }}>
               {report.areasToImprove?.map((area, idx) => (
                 <li key={idx} style={{ marginBottom: 8, color: '#b93815' }}>
@@ -176,7 +177,7 @@ export function InterviewReportView({ sessionId }: InterviewReportViewProps) {
               <span>Actionable Learning Roadmap</span>
             </Space>
           }
-          bordered={false}
+          variant="borderless"
           style={{ marginBottom: 24 }}
         >
           <Timeline
@@ -208,7 +209,7 @@ export function InterviewReportView({ sessionId }: InterviewReportViewProps) {
             <span>Per-Question Evaluation Breakdown</span>
           </Space>
         }
-        bordered={false}
+        variant="borderless"
       >
         <Collapse
           items={evaluations.map((evalItem, index) => ({

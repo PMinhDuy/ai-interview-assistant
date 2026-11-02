@@ -14,7 +14,7 @@ import {
   Row,
   Col,
   Alert,
-  message,
+  App,
   InputNumber,
   Tag,
 } from 'antd';
@@ -87,6 +87,7 @@ const steps = [
 
 export function InterviewCreateForm() {
   const router = useRouter();
+  const { message } = App.useApp();
   const [currentStep, setCurrentStep] = useState(0);
 
   // Form State
@@ -129,11 +130,11 @@ export function InterviewCreateForm() {
         <Text type="secondary">Customize your mock interview criteria for personalized AI feedback</Text>
       </div>
 
-      <Card bordered={false} style={{ marginBottom: 24 }}>
+      <Card variant="borderless" style={{ marginBottom: 24 }}>
         <Steps current={currentStep} items={steps} />
       </Card>
 
-      <Card bordered={false}>
+      <Card variant="borderless">
         {/* STEP 1: Select Type */}
         {currentStep === 0 && (
           <div>
@@ -206,14 +207,17 @@ export function InterviewCreateForm() {
               <Text strong style={{ display: 'block', marginBottom: 8 }}>
                 Total Questions in Session:
               </Text>
-              <InputNumber
-                min={3}
-                max={15}
-                value={totalQuestions}
-                onChange={(val) => setTotalQuestions(val || 5)}
-                size="large"
-                addonAfter="questions"
-              />
+              <Space.Compact size="large">
+                <InputNumber
+                  min={3}
+                  max={15}
+                  value={totalQuestions}
+                  onChange={(val) => setTotalQuestions(val || 5)}
+                />
+                <Button disabled style={{ cursor: 'default', color: '#6b7280' }}>
+                  questions
+                </Button>
+              </Space.Compact>
             </div>
           </div>
         )}

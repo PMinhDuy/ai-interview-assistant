@@ -47,7 +47,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Account Info Card */}
-      <Card title="Account Profile" bordered={false} style={{ marginBottom: 24 }}>
+      <Card title="Account Profile" variant="borderless" style={{ marginBottom: 24 }}>
         <div style={{ marginBottom: 16 }}>
           <Space size={12}>
             <Tag color={user?.role === 'ADMIN' ? 'red' : 'blue'}>{user?.role || 'USER'}</Tag>
@@ -87,7 +87,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Change Password Card */}
-      <Card title="Change Password" bordered={false}>
+      <Card title="Change Password" variant="borderless">
         <Form form={passwordForm} layout="vertical" onFinish={handleChangePassword} size="large">
           <Form.Item
             label="Current Password"

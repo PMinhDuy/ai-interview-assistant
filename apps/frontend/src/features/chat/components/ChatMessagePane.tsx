@@ -5,7 +5,7 @@ import { Card, Input, Button, Avatar, Spin, Typography } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
 import type { ChatMessage } from '../api';
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
 
 export interface ChatMessagePaneProps {
@@ -37,8 +37,9 @@ export function ChatMessagePane({
       {/* Messages Scroll Area */}
       <div style={{ flex: 1, overflowY: 'auto', paddingRight: 8, marginBottom: 16 }}>
         {isLoading ? (
-          <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-            <Spin tip="Loading chat messages..." />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <Spin size="default" />
+            <Text type="secondary">Loading chat messages...</Text>
           </div>
         ) : messages.length === 0 ? (
           <div style={{ textAlign: 'center', marginTop: 80, color: '#8c8c8c' }}>

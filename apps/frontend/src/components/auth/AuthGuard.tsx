@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Spin } from 'antd';
+import { Spin, Typography } from 'antd';
 
 export function AuthGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -18,8 +18,9 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 
   if (!isInitialized) {
     return (
-      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: '#f5f7fa' }}>
-        <Spin size="large" tip="Loading AI Interview Assistant..." />
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: '#f5f7fa', gap: 16 }}>
+        <Spin size="large" />
+        <Typography.Text type="secondary">Loading AI Interview Assistant...</Typography.Text>
       </div>
     );
   }

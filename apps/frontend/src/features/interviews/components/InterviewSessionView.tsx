@@ -96,8 +96,9 @@ export function InterviewSessionView({ sessionId }: InterviewSessionViewProps) {
 
   if (isLoadingSession || isLoadingQuestion) {
     return (
-      <div style={{ display: 'flex', minHeight: '60vh', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin size="large" tip="Loading interview question..." />
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '60vh', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+        <Spin size="large" />
+        <Text type="secondary">Loading interview question...</Text>
       </div>
     );
   }
@@ -110,7 +111,7 @@ export function InterviewSessionView({ sessionId }: InterviewSessionViewProps) {
   return (
     <div style={{ maxWidth: 920, margin: '0 auto' }}>
       {/* Header & Progress */}
-      <Card bordered={false} style={{ marginBottom: 20 }}>
+      <Card variant="borderless" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <Space size={12}>
             <Tag color="blue" style={{ fontSize: 14, padding: '4px 12px' }}>
@@ -134,7 +135,7 @@ export function InterviewSessionView({ sessionId }: InterviewSessionViewProps) {
 
       {/* Main Question Card */}
       {question ? (
-        <Card bordered={false} style={{ marginBottom: 20 }}>
+        <Card variant="borderless" style={{ marginBottom: 20 }}>
           <Space align="start" size={12} style={{ marginBottom: 16 }}>
             <QuestionCircleOutlined style={{ fontSize: 24, color: '#1677ff', marginTop: 4 }} />
             <div>
@@ -197,7 +198,7 @@ export function InterviewSessionView({ sessionId }: InterviewSessionViewProps) {
           </div>
         </Card>
       ) : (
-        <Card bordered={false}>
+        <Card variant="borderless">
           <Alert
             type="success"
             message="Session Completed!"

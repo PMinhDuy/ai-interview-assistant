@@ -2,7 +2,7 @@
 
 import React, { useEffect, type ReactNode } from 'react';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
-import { ConfigProvider, theme as antdTheme } from 'antd';
+import { ConfigProvider, App, theme as antdTheme } from 'antd';
 import { useAuthStore } from '../store/useAuthStore';
 
 export function StyledComponentsRegistry({ children }: { children: ReactNode }) {
@@ -39,7 +39,9 @@ export function StyledComponentsRegistry({ children }: { children: ReactNode }) 
           },
         }}
       >
-        {children}
+        <App style={{ minHeight: '100%' }}>
+          {children}
+        </App>
       </ConfigProvider>
     </AntdRegistry>
   );

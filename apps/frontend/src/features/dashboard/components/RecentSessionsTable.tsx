@@ -77,7 +77,7 @@ export function RecentSessionsTable({ sessions, isLoading }: RecentSessionsTable
   ];
 
   return (
-    <Card title="Interview Sessions History" bordered={false}>
+    <Card title="Interview Sessions History" variant="borderless">
       {sessions.length === 0 && !isLoading ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="You haven't created any interview sessions yet.">
           <Space>

@@ -1,3 +1,4 @@
+import '@ant-design/v5-patch-for-react-19';
 import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import { StyledComponentsRegistry } from './registry';

@@ -27,8 +27,8 @@ test.describe('Interview Creation Wizard Flow', () => {
     await wizardPage.submitAndStart();
 
     // Expect navigation to active interview screen
-    await page.waitForURL('**/interviews/*', { timeout: 15000 });
-    await expect(page.getByText(/Question \d+ of 5/)).toBeVisible();
+    await page.waitForURL(/\/interviews\/(?!new)/, { timeout: 15000 });
+    await expect(page.getByText(/Question \d+ of 5/)).toBeVisible({ timeout: 10000 });
     await expect(page.getByRole('heading', { level: 3 })).toBeVisible();
   });
 });

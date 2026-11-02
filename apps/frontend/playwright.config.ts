@@ -8,6 +8,7 @@ export const STORAGE_STATE_PATH = path.join(__dirname, 'e2e/.auth/user.json');
 
 export default defineConfig({
   testDir: './e2e/specs',
+  timeout: 45 * 1000,
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,

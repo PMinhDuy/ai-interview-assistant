@@ -86,7 +86,7 @@ export function FilesView() {
         </Button>
       </div>
 
-      <Card bordered={false}>
+      <Card variant="borderless">
         <Tabs
           activeKey={activeTab}
           onChange={(key) => setActiveTab(key as 'resumes' | 'jds')}

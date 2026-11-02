@@ -234,7 +234,7 @@ export function PromptsAdminView() {
         </Button>
       </div>
 
-      <Card bordered={false}>
+      <Card variant="borderless">
         <Table dataSource={prompts} columns={columns} rowKey="id" loading={isLoading} pagination={{ pageSize: 10 }} />
       </Card>
 
