@@ -10,6 +10,7 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:e2e": "turbo test:e2e --filter=@repo/frontend",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\" --ignore-path .gitignore",
     "clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +"
   },
